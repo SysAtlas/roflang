@@ -1,0 +1,6 @@
+extern sin(x);
+extern cos(x);
+
+def tan(x) sin(x) / cos(x);
+
+def test(x) (1+2+x)*(x+(1+2));
