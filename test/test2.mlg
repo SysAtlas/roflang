@@ -1,0 +1,6 @@
+def test(x y) -> i64 {
+  if (x < 7) {
+    x + 7;
+  }
+  return x + 5;
+}

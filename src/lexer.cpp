@@ -56,11 +56,27 @@ Lexer::Token Lexer::getTok() {
       nextChar();
     } while (std::isalnum(LastChar));
 
+    // TODO: Make a centralized tables.. this is too much effort
     if (IdentifierStr == "def") {
-      return DefToken{};
+      return KeywordDefToken{};
     }
     if (IdentifierStr == "extern") {
-      return ExternToken{};
+      return KeywordExternToken{};
+    }
+    if (IdentifierStr == "if") {
+      return KeywordIfToken{};
+    }
+    if (IdentifierStr == "i64") {
+      return KeywordI64Token{};
+    }
+    if (IdentifierStr == "else") {
+      return KeywordElseToken{};
+    }
+    if (IdentifierStr == "void") {
+      return KeywordVoidToken{};
+    }
+    if (IdentifierStr == "return") {
+      return KeywordReturnToken{};
     }
     return IdentifierToken{IdentifierStr};
   }
@@ -73,7 +89,7 @@ Lexer::Token Lexer::getTok() {
     } while (isdigit(LastChar) || LastChar == '.');
 
     // TODO: ERROR HANDLING
-    f64 NumVal = strtod(NumStr.c_str(), nullptr);
+    i64 NumVal = std::strtoll(NumStr.c_str(), nullptr, 10);
 
     return NumberToken{NumVal};
   }
@@ -94,6 +110,12 @@ Lexer::Token Lexer::getTok() {
   nextChar();
   if (ToMatch == ',') {
     return CommaToken{};
+  } else if (ToMatch == '-') {
+    if (LastChar == '>') {
+      nextChar();
+      return ArrowToken{};
+    }
+    return BinOpToken{'-'};
   } else if (getBinOpPrededenece(ToMatch)) {
     return BinOpToken{ToMatch};
   } else if (ToMatch == ';') {
@@ -104,9 +126,14 @@ Lexer::Token Lexer::getTok() {
     return RParToken{};
   } else if (ToMatch == EOF) {
     return EOFToken{};
+  } else if (ToMatch == '{') {
+    return LCurlyBraceToken{};
+  } else if (ToMatch == '}') {
+    return RCurlyBraceToken{};
   }
 
   // Should be unreachable
+  std::cerr << "Unknown token type!" << std::endl;
   abort();
 }
 
@@ -117,4 +144,13 @@ Lexer::Lexer(const char *ModulePath)
     std::exit(1);
   }
   nextChar();
+}
+
+std::string_view Lexer::Token::print() const {
+  return std::visit<std::string_view>(
+    overloaded{[](const auto &Value) -> const std::string& { return Value.PrettyRepr_; }}, Value);
+}
+
+void Lexer::Token::dump() const {
+  std::cerr << print() << std::endl;
 }

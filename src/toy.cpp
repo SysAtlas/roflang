@@ -1,9 +1,5 @@
-#include <codegen.hpp>
-#include <parser.hpp>
-
-#include <llvm/IR/Module.h>
 #include <llvm/Support/CommandLine.h>
-#include <llvm/Support/raw_ostream.h>
+#include <driver.hpp>
 
 using namespace llvm;
 
@@ -18,19 +14,6 @@ static cl::opt<std::string> OutputFilename("o",
 int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv);
 
-  std::unique_ptr<ModuleAST> AST = Parser::parse(InputFilename.data());
-
-  LLVMContext Context{};
-  std::unique_ptr<llvm::Module> M =
-    CodeGenerator::generate(std::move(AST), Context);
-
-  if (OutputFilename == "-") {
-    M->print(llvm::errs(), nullptr);
-  } else {
-    std::error_code EC;
-    llvm::raw_fd_stream Result{OutputFilename, EC};
-    M->print(Result, nullptr);
-  }
-
-  return 0;
+  LLVMDriver Driver{InputFilename, OutputFilename};
+  Driver.compile();
 }
