@@ -25,24 +25,24 @@ private:
   std::unique_ptr<llvm::Module> TheModule;
   std::unique_ptr<llvm::IRBuilder<>> Builder;
   std::unordered_map<std::string, llvm::Value *> NamedValues;
-  std::unique_ptr<ModuleAST> ModuleTree;
+  std::unique_ptr<AST::Module> ModuleTree;
 
-  llvm::Value *codegen(const NumberExpr &NNode);
-  llvm::Value *codegen(const VariableExpr &VNode);
-  llvm::Value *codegen(const BinaryExpr &BNode);
-  llvm::Value *codegen(const CallExpr &CNode);
-  llvm::Value *codegen(const Expr &ENode);
-  void codegen(const Statement &SNode);
-  void codegen(const IfStatement &SNode);
-  void codegen(const ReturnStatement& SNode);
+  llvm::Value *codegen(const AST::NumberExpr &NNode);
+  llvm::Value *codegen(const AST::VariableExpr &VNode);
+  llvm::Value *codegen(const AST::BinaryExpr &BNode);
+  llvm::Value *codegen(const AST::CallExpr &CNode);
+  llvm::Value *codegen(const AST::Expr &ENode);
+  void codegen(const AST::Statement &SNode);
+  void codegen(const AST::IfStatement &SNode);
+  void codegen(const AST::ReturnStatement& SNode);
 
-  llvm::Function *codegen(const PrototypeAST &PNode);
-  llvm::Function *codegen(const FunctionAST &FNode);
+  llvm::Function *codegen(const AST::Prototype &PNode);
+  llvm::Function *codegen(const AST::Function &FNode);
   llvm::Module *codegen();
 
-  LLVMCodeGen(std::unique_ptr<ModuleAST> AST, llvm::LLVMContext &Context);
+  LLVMCodeGen(std::unique_ptr<AST::Module> AST, llvm::LLVMContext &Context);
 
 public:
-  static std::unique_ptr<llvm::Module> generate(std::unique_ptr<ModuleAST> AST,
+  static std::unique_ptr<llvm::Module> generate(std::unique_ptr<AST::Module> AST,
                                                 llvm::LLVMContext &Context);
 };

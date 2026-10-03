@@ -1,30 +1,64 @@
 #include <fstream>
+#include <helper.hpp>
 #include <iostream>
 #include <lexer.hpp>
-#include <my_types.hpp>
 
-std::optional<u32> getBinOpPrededenece(char BinOp) {
-  switch (BinOp) {
-  case '<': {
-    return 10;
+static constexpr std::array BinOpInfoTable = {
+  BinOpInfo{BinOpType::Add, 20, "+"},
+  BinOpInfo{BinOpType::Sub, 20, "-"},
+  BinOpInfo{BinOpType::Mul, 40, "*"},
+  BinOpInfo{BinOpType::Div, 40, "/"},
+  BinOpInfo{BinOpType::Lt, 10, "<"},
+  BinOpInfo{BinOpType::Leq, 10, "<="},
+  BinOpInfo{BinOpType::Gt, 10, ">"},
+  BinOpInfo{BinOpType::Geq, 10, ">="},
+  BinOpInfo{BinOpType::Eq, 10, "=="},
+  BinOpInfo{BinOpType::Neq, 10, "!="},
+};
+
+static constexpr std::array RLTypeInfoTable = {
+  RLTypeInfo{RLType::Void, "void"},
+  RLTypeInfo{RLType::I64, "i64"},
+};
+
+const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp) {
+  if (auto Element = std::ranges::find_if(
+        BinOpInfoTable,
+        [BinOp](const BinOpInfo &Entry) { return Entry.Op == BinOp; });
+      Element != BinOpInfoTable.end()) {
+    return Element;
   }
-  case '+': {
-    return 20;
+  return nullptr;
+}
+
+const BinOpInfo *searchBinOpInfoTable(const std::string &SV) {
+  if (auto Element = std::ranges::find_if(
+        BinOpInfoTable,
+        [SV](const auto &Entry) { return Entry.PrettyRepr_ == SV; });
+      Element != BinOpInfoTable.end()) {
+    return Element;
   }
-  case '-': {
-    return 20;
+  return nullptr;
+}
+
+const RLTypeInfo *searchRLTypeInfoTable(RLType Type) {
+  if (auto Element = std::ranges::find_if(
+        RLTypeInfoTable,
+        [Type](const RLTypeInfo &Entry) { return Entry.Type == Type; });
+      Element != RLTypeInfoTable.end()) {
+    return Element;
   }
-  case '*': {
-    return 40;
+  return nullptr;
+}
+
+const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV) {
+  if (auto Element = std::ranges::find_if(
+        RLTypeInfoTable,
+        [SV](const RLTypeInfo &Entry) { return Entry.PrettyRepr_ == SV; });
+      Element != RLTypeInfoTable.end()) {
+    return Element;
   }
-  case '/': {
-    return 40;
-  }
-  default: {
-    break;
-  }
-  }
-  return std::nullopt;
+  return nullptr;
 }
 
 char Lexer::nextChar() {
@@ -56,7 +90,7 @@ Lexer::Token Lexer::getTok() {
       nextChar();
     } while (std::isalnum(LastChar));
 
-    // TODO: Make a centralized tables.. this is too much effort
+    // TODO: Make centralized tables.. this is too much effort
     if (IdentifierStr == "def") {
       return KeywordDefToken{};
     }
@@ -66,18 +100,16 @@ Lexer::Token Lexer::getTok() {
     if (IdentifierStr == "if") {
       return KeywordIfToken{};
     }
-    if (IdentifierStr == "i64") {
-      return KeywordI64Token{};
-    }
     if (IdentifierStr == "else") {
       return KeywordElseToken{};
-    }
-    if (IdentifierStr == "void") {
-      return KeywordVoidToken{};
     }
     if (IdentifierStr == "return") {
       return KeywordReturnToken{};
     }
+    if (const RLTypeInfo *Type = searchRLTypeInfoTable(IdentifierStr)) {
+      return RLTypeToken{Type->Type};
+    }
+
     return IdentifierToken{IdentifierStr};
   }
 
@@ -115,9 +147,10 @@ Lexer::Token Lexer::getTok() {
       nextChar();
       return ArrowToken{};
     }
-    return BinOpToken{'-'};
-  } else if (getBinOpPrededenece(ToMatch)) {
-    return BinOpToken{ToMatch};
+    return BinOpToken{BinOpType::Sub};
+  } else if (const BinOpInfo *T =
+               searchBinOpInfoTable(std::string(1, ToMatch))) {
+    return BinOpToken{T->Op};
   } else if (ToMatch == ';') {
     return SemicolonToken{};
   } else if (ToMatch == '(') {
@@ -130,6 +163,8 @@ Lexer::Token Lexer::getTok() {
     return LCurlyBraceToken{};
   } else if (ToMatch == '}') {
     return RCurlyBraceToken{};
+  } else if (ToMatch == ':') {
+    return ColonToken{};
   }
 
   // Should be unreachable
@@ -148,7 +183,12 @@ Lexer::Lexer(const char *ModulePath)
 
 std::string_view Lexer::Token::print() const {
   return std::visit<std::string_view>(
-    overloaded{[](const auto &Value) -> const std::string& { return Value.PrettyRepr_; }}, Value);
+    overloaded{[](const BinOpToken &Arg) { return Arg.Info->PrettyRepr_; },
+               [](const RLTypeToken &Arg) -> const std::string & { return Arg.Info->PrettyRepr_; },
+               [](const auto &Value) -> const std::string & {
+                 return Value.PrettyRepr_;
+               }},
+    Value);
 }
 
 void Lexer::Token::dump() const {

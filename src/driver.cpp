@@ -1,3 +1,4 @@
+#include "sema.hpp"
 #include <driver.hpp>
 
 #include <llvmcodegen.hpp>
@@ -12,7 +13,8 @@ using namespace llvm;
 LLVMDriver::LLVMDriver(std::string_view InputFilePath, std::string_view OutputFilePath) : InputFilePath(InputFilePath), OutputFilePath(OutputFilePath) {}
 
 void LLVMDriver::compile() {
-  std::unique_ptr<ModuleAST> AST = Parser::parse(InputFilePath.data());
+  std::unique_ptr<AST::Module> AST = Parser::parse(InputFilePath.data());
+  Sema::analyze(*AST);
 
   LLVMContext TheContext{};
   std::unique_ptr<llvm::Module> M =

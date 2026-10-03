@@ -1,6 +1,6 @@
 #pragma once
 
-#include "my_types.hpp"
+#include "helper.hpp"
 #include <fstream>
 #include <optional>
 #include <string>
@@ -10,7 +10,26 @@
 // Lexer
 //===----------------------------------------------------------------------===//
 
-std::optional<u32> getBinOpPrededenece(char BinOp);
+enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq };
+
+enum class RLType { I64, Void };
+
+struct BinOpInfo {
+  BinOpType Op;
+  u32 Precedence;
+  std::string PrettyRepr_;
+};
+
+struct RLTypeInfo {
+  RLType Type;
+  std::string PrettyRepr_;
+};
+
+const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp);
+const BinOpInfo *searchBinOpInfoTable(const std::string &SV);
+
+const RLTypeInfo *searchRLTypeInfoTable(RLType Type);
+const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV);
 
 class Lexer {
 private:
@@ -49,11 +68,10 @@ public:
     std::string PrettyRepr_ = "return";
   };
   // Types
-  struct KeywordVoidToken {
-    std::string PrettyRepr_ = "void";
-  };
-  struct KeywordI64Token {
-    std::string PrettyRepr_ = "i64";
+  struct RLTypeToken {
+    const RLTypeInfo *Info;
+
+    RLTypeToken(const RLType &Type) : Info(searchRLTypeInfoTable(Type)) {}
   };
 
   // -----------------
@@ -74,10 +92,9 @@ public:
   };
 
   struct BinOpToken {
-    char Op_;
-    std::string PrettyRepr_;
+    const BinOpInfo* Info;
 
-    BinOpToken(char Op) : Op_{Op}, PrettyRepr_(1, Op) {}
+    BinOpToken(BinOpType Op) : Info{searchBinOpInfoTable(Op)} {}
   };
 
   // Punctuation
@@ -102,6 +119,9 @@ public:
   struct ArrowToken {
     std::string PrettyRepr_ = "->";
   };
+  struct ColonToken {
+    std::string PrettyRepr_ = ":";
+  };
 
   // New token types should always be added to this variant.
   class Token {
@@ -120,8 +140,9 @@ public:
                                    KeywordIfToken,
                                    KeywordElseToken,
                                    ArrowToken,
-                                   KeywordVoidToken,
-                                   KeywordReturnToken, KeywordI64Token>;
+                                   KeywordReturnToken,
+                                   ColonToken,
+                                   RLTypeToken>;
     TokenType Value;
 
   public:

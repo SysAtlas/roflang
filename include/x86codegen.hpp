@@ -5,19 +5,19 @@
 
 class X86CodeGen {
 private:
-  void codegen(const NumberExpr &NNode);
-  void codegen(const VariableExpr &VNode);
-  void codegen(const BinaryExpr &BNode);
-  void codegen(const CallExpr &CNode);
-  void codegen(const Expr &ENode);
-  void codegen(const Statement &SNode);
-  void codegen(const IfStatement &SNode);
-  void codegen(const PrototypeAST &PNode);
-  void codegen(const FunctionAST &FNode);
-  void codegen(const ModuleAST& MNode);
+  void codegen(const AST::NumberExpr &NNode);
+  void codegen(const AST::VariableExpr &VNode);
+  void codegen(const AST::BinaryExpr &BNode);
+  void codegen(const AST::CallExpr &CNode);
+  void codegen(const AST::Expr &ENode);
+  void codegen(const AST::Statement &SNode);
+  void codegen(const AST::IfStatement &SNode);
+  void codegen(const AST::Prototype &PNode);
+  void codegen(const AST::Function &FNode);
+  void codegen(const AST::Module& MNode);
 
   std::string ProgramText;
 
 public:
-  static std::string generate(std::unique_ptr<ModuleAST> AST);
+  static std::string generate(std::unique_ptr<AST::Module> AST);
 };

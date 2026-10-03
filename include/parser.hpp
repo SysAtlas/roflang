@@ -1,5 +1,6 @@
 #pragma once
 
+#include "helper.hpp"
 #include <ast.hpp>
 #include <lexer.hpp>
 #include <memory>
@@ -11,55 +12,44 @@ private:
   std::unique_ptr<Lexer> Lexer_;
   Token CurTok;
 
-  [[nodiscard]] std::unique_ptr<PrototypeAST> parseExtern();
-  [[nodiscard]] std::unique_ptr<FunctionAST> parseTopLevelExpr();
-  [[nodiscard]] std::unique_ptr<FunctionAST> parseDefinition();
-  [[nodiscard]] std::unique_ptr<PrototypeAST> parsePrototype();
-  [[nodiscard]] std::unique_ptr<Expr> parseExpression();
-  [[nodiscard]] std::unique_ptr<Expr> parseBinOpRHS(i32 ExprPrec,
-                                                    std::unique_ptr<Expr> LHS);
-  [[nodiscard]] std::unique_ptr<Statement> parseStatement();
-  [[nodiscard]] std::vector<std::unique_ptr<Statement>>
-  parseStatementSequence();
-  [[nodiscard]] std::unique_ptr<ReturnStatement> parseReturnStatement();
-  [[nodiscard]] std::unique_ptr<IfStatement> parseIfStatement();
-  [[nodiscard]] std::unique_ptr<Expr> parsePrimary();
-  [[nodiscard]] std::unique_ptr<Expr> parseIdExpr();
-  [[nodiscard]] std::unique_ptr<Expr> parseParenExpr();
-  [[nodiscard]] std::unique_ptr<Expr> parseNumberExpr();
-  [[nodiscard]] std::unique_ptr<ModuleAST> parseModule();
+  [[nodiscard]] std::unique_ptr<AST::Prototype> parseExtern();
+  [[nodiscard]] std::unique_ptr<AST::Function> parseTopLevelExpr();
+  [[nodiscard]] std::unique_ptr<AST::Function> parseDefinition();
+  [[nodiscard]] std::unique_ptr<AST::Prototype> parsePrototype();
+  [[nodiscard]] AST::Expr parseExpression();
+  [[nodiscard]] AST::Expr parseBinOpRHS(u32 ExprPrec, AST::Expr& LHS);
+  [[nodiscard]] AST::Statement parseStatement();
+  [[nodiscard]] std::vector<AST::Statement> parseStatementSequence();
+  [[nodiscard]] std::unique_ptr<AST::ReturnStatement> parseReturnStatement();
+  [[nodiscard]] std::unique_ptr<AST::IfStatement> parseIfStatement();
+  [[nodiscard]] AST::Expr parsePrimary();
+  [[nodiscard]] AST::Expr parseIdExpr();
+  [[nodiscard]] AST::Expr parseParenExpr();
+  [[nodiscard]] AST::Expr parseNumberExpr();
+  [[nodiscard]] std::unique_ptr<AST::Module> parseModule();
 
   // Logging
-  std::unique_ptr<PrototypeAST> logErrorP(const char *Str);
-  std::unique_ptr<Expr> logError(const char *Str);
+  void logErrorP(const char *Str);
+  void logError(const char *Str);
 
   Token getNextToken();
 
-  template <typename T> T consumeToken(const char *ErrorMsg) {
+  template <typename T> T consumeToken(const char *ErrorMsg = nullptr) {
     std::optional<T> Tmp = CurTok.getIf<T>();
     if (!Tmp) {
-      logError(ErrorMsg);
+      if (ErrorMsg) {
+        logError(ErrorMsg);
+      }
       abort();
     }
     T Res = *Tmp;
+    DBGPRINT(std::format("Parser: consumed token {}", CurTok.print()));
     getNextToken();
     return Res;
   }
-
-  template <typename T> T consumeToken() {
-    std::optional<T> Tmp = CurTok.getIf<T>();
-    if (!Tmp) {
-      abort();
-    }
-    T Res = *Tmp;
-    getNextToken();
-    return Res;
-  }
-
-  i32 getTokPrecedence();
 
   Parser(const char *Module);
 
 public:
-  static std::unique_ptr<ModuleAST> parse(const char *ModulePath);
+  static std::unique_ptr<AST::Module> parse(const char *ModulePath);
 };

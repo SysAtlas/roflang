@@ -1,3 +1,4 @@
+#include "lexer.hpp"
 #include <ast.hpp>
 #include <iostream>
 #include <llvm/IR/IRBuilder.h>
@@ -10,31 +11,31 @@
 
 using namespace llvm;
 
-Value *LogErrorV(const char *Str) {
+llvm::Value *LogErrorV(const char *Str) {
   std::cerr << Str << std::endl;
   abort();
   return nullptr;
 }
 
-LLVMCodeGen::LLVMCodeGen(std::unique_ptr<ModuleAST> ModuleTree,
+LLVMCodeGen::LLVMCodeGen(std::unique_ptr<AST::Module> ModuleTree,
                          LLVMContext &Context)
     : TheContext(Context),
       TheModule(std::make_unique<Module>("my cool jit", TheContext)),
       Builder(std::make_unique<IRBuilder<>>(TheContext)),
       ModuleTree{std::move(ModuleTree)} {}
 
-std::unique_ptr<Module> LLVMCodeGen::generate(std::unique_ptr<ModuleAST> AST,
+std::unique_ptr<Module> LLVMCodeGen::generate(std::unique_ptr<AST::Module> AST,
                                               llvm::LLVMContext &Context) {
   LLVMCodeGen C{std::move(AST), Context};
   C.codegen();
   return std::move(C.TheModule);
 }
 
-Value *LLVMCodeGen::codegen(const NumberExpr &NNode) {
+Value *LLVMCodeGen::codegen(const AST::NumberExpr &NNode) {
   return ConstantInt::get(Type::getInt64Ty(TheContext), NNode.Val);
 }
 
-Value *LLVMCodeGen::codegen(const VariableExpr &VNode) {
+Value *LLVMCodeGen::codegen(const AST::VariableExpr &VNode) {
   // Look this variable up in the function.
   Value *V = NamedValues[VNode.Name];
   if (!V) {
@@ -43,23 +44,23 @@ Value *LLVMCodeGen::codegen(const VariableExpr &VNode) {
   return V;
 }
 
-Value *LLVMCodeGen::codegen(const BinaryExpr &BNode) {
-  Value *L = codegen(*BNode.LHS);
-  Value *R = codegen(*BNode.RHS);
+Value *LLVMCodeGen::codegen(const AST::BinaryExpr &BNode) {
+  Value *L = codegen(BNode.LHS);
+  Value *R = codegen(BNode.RHS);
   if (!L || !R) {
     return nullptr;
   }
 
   switch (BNode.Op) {
-  case '+':
+  case BinOpType::Add:
     return Builder->CreateAdd(L, R, "addtmp");
-  case '-':
+  case BinOpType::Sub:
     return Builder->CreateSub(L, R, "subtmp");
-  case '*':
+  case BinOpType::Mul:
     return Builder->CreateMul(L, R, "multmp");
-  case '/':
+  case BinOpType::Div:
     return Builder->CreateSDiv(L, R, "divtmp");
-  case '<':
+  case BinOpType::Lt:
     L = Builder->CreateICmpULT(L, R, "cmptmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
   default:
@@ -67,7 +68,7 @@ Value *LLVMCodeGen::codegen(const BinaryExpr &BNode) {
   }
 }
 
-Value *LLVMCodeGen::codegen(const CallExpr &CNode) {
+Value *LLVMCodeGen::codegen(const AST::CallExpr &CNode) {
   // Look up the name in the global module table.
   Function *CalleeF = TheModule->getFunction(CNode.Callee);
   if (!CalleeF) {
@@ -80,7 +81,7 @@ Value *LLVMCodeGen::codegen(const CallExpr &CNode) {
 
   std::vector<Value *> ArgsV;
   for (unsigned i = 0, e = CNode.Args.size(); i != e; ++i) {
-    ArgsV.push_back(codegen(*CNode.Args[i]));
+    ArgsV.push_back(codegen(CNode.Args[i]));
     if (!ArgsV.back()) {
       return nullptr;
     }
@@ -89,39 +90,38 @@ Value *LLVMCodeGen::codegen(const CallExpr &CNode) {
   return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-Value *LLVMCodeGen::codegen(const Expr &ENode) {
-  return std::visit(
-    overloaded{[this](const auto &Arg) { return codegen(*Arg); }}, ENode.Value);
+Value *LLVMCodeGen::codegen(const AST::Expr &ENode) {
+  return std::visit<Value *>(
+    overloaded{[this](const auto &Arg) { return codegen(*Arg); }}, ENode);
 }
 
-void LLVMCodeGen::codegen(const IfStatement &SNode) {
-  Value *Condition = codegen(*SNode.Condition);
+void LLVMCodeGen::codegen(const AST::IfStatement &SNode) {
+  Value *Condition = codegen(SNode.Condition);
   BasicBlock *IfBody = BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
-  BasicBlock *AfterIf = BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
+  BasicBlock *AfterIf =
+    BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
   Builder->CreateCondBr(Condition, IfBody, AfterIf);
   Builder->SetInsertPoint(IfBody);
   for (const auto &S : SNode.Body) {
-    codegen(*S);
+    codegen(S);
   }
   Builder->CreateBr(AfterIf);
   Builder->SetInsertPoint(AfterIf);
 }
 
-void LLVMCodeGen::codegen(const ReturnStatement& SNode) {
-  if (SNode.Value != nullptr) {
+void LLVMCodeGen::codegen(const AST::ReturnStatement &SNode) {
+  if (SNode.Value) {
     Value *RetVal = codegen(*SNode.Value);
     Builder->CreateStore(RetVal, RetSlot, false);
   }
   Builder->CreateBr(EndBB);
 }
 
-void LLVMCodeGen::codegen(const Statement &SNode) {
-  std::visit(overloaded{[this](const auto &Arg) { codegen(*Arg); }},
-             SNode.Value);
+void LLVMCodeGen::codegen(const AST::Statement &SNode) {
+  std::visit(overloaded{[this](const auto &Arg) { codegen(*Arg); }}, SNode);
 }
 
-Function *LLVMCodeGen::codegen(const PrototypeAST &PNode) {
-  // Make the function type:  double(double,double) etc.
+Function *LLVMCodeGen::codegen(const AST::Prototype &PNode) {
   std::vector<Type *> Ints(PNode.Args.size(), Type::getInt64Ty(TheContext));
 
   Type *RetType = PNode.ReturnType == RLType::Void
@@ -141,9 +141,9 @@ Function *LLVMCodeGen::codegen(const PrototypeAST &PNode) {
   return F;
 }
 
-Function *LLVMCodeGen::codegen(const FunctionAST &FNode) {
+Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
   // First, check for an existing function from a previous 'extern' declaration.
-  TheFunction = TheModule->getFunction(FNode.Proto->getName());
+  TheFunction = TheModule->getFunction(FNode.Proto->Name);
 
   if (!TheFunction) {
     TheFunction = codegen(*FNode.Proto);
@@ -186,10 +186,8 @@ Function *LLVMCodeGen::codegen(const FunctionAST &FNode) {
   }
 
   for (const auto &S : FNode.Body) {
-    codegen(*S);
+    codegen(S);
   }
-
-  Builder->CreateBr(EndBB);
 
   verifyFunction(*TheFunction);
 
@@ -197,7 +195,7 @@ Function *LLVMCodeGen::codegen(const FunctionAST &FNode) {
 }
 
 Module *LLVMCodeGen::codegen() {
-  for (const TopLevelItem &TLI : ModuleTree->TopLevelItems) {
+  for (const AST::Module::TopLevelItem &TLI : ModuleTree->TopLevelItems) {
     Function *X = std::visit(
       overloaded{
         [this](auto &arg) { return codegen(*arg); },

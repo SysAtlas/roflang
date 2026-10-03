@@ -1,7 +1,8 @@
-#include "ast.hpp"
-#include "lexer.hpp"
+#include <ast.hpp>
+#include <cassert>
+#include <helper.hpp>
+#include <lexer.hpp>
 #include <memory>
-#include <my_types.hpp>
 #include <parser.hpp>
 #include <variant>
 
@@ -14,45 +15,29 @@ Lexer::Token Parser::getNextToken() {
   return CurTok = Lexer_->getTok();
 }
 
-/// GetTokPrecedence - Get the precedence of the pending binary operator token.
-i32 Parser::getTokPrecedence() {
-  assert(CurTok.is<Lexer::BinOpToken>() &&
-         "BinOp predecende queried in wrong place!");
-  char Op = CurTok.get<Lexer::BinOpToken>().Op_;
-
-  std::optional<u32> Precedence = getBinOpPrededenece(Op);
-  assert(Precedence && "Unknown binary operator!");
-  return *Precedence;
-}
-
 /// LogError* - These are little helper functions for error handling.
-std::unique_ptr<Expr> Parser::logError(const char *Str) {
+void Parser::logError(const char *Str) {
   Lexer::LocInfo Info = Lexer_->getLocInfo();
   fprintf(stderr, "Error on line %d, col %d: %s\n", Info.Line, Info.Col, Str);
   abort();
-  return nullptr;
 }
 
-std::unique_ptr<PrototypeAST> Parser::logErrorP(const char *Str) {
+void Parser::logErrorP(const char *Str) {
   logError(Str);
-  return nullptr;
+  abort();
 }
 
 /// numberexpr ::= number
-std::unique_ptr<Expr> Parser::parseNumberExpr() {
+AST::Expr Parser::parseNumberExpr() {
   auto NumberToken = consumeToken<Lexer::NumberToken>();
-  auto Result = std::make_unique<NumberExpr>(NumberToken.NumVal_);
-  return Expr::from(std::move(Result));
+  auto Result = std::make_unique<AST::NumberExpr>(NumberToken.NumVal_);
+  return Result;
 }
 
 /// parenexpr ::= '(' expression ')'
-std::unique_ptr<Expr> Parser::parseParenExpr() {
+AST::Expr Parser::parseParenExpr() {
   consumeToken<Lexer::LParToken>();
   auto V = parseExpression();
-  if (!V) {
-    return nullptr;
-  }
-
   consumeToken<Lexer::RParToken>();
   return V;
 }
@@ -60,29 +45,28 @@ std::unique_ptr<Expr> Parser::parseParenExpr() {
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-std::unique_ptr<Expr> Parser::parseIdExpr() {
+AST::Expr Parser::parseIdExpr() {
   auto IdToken = consumeToken<Lexer::IdentifierToken>();
   std::string IdName{IdToken.Name_};
 
   // Simple variable ref.
   if (!CurTok.is<Lexer::LParToken>()) {
-    return Expr::from(std::make_unique<VariableExpr>(IdName));
+    return std::make_unique<AST::VariableExpr>(IdName);
   }
 
   consumeToken<Lexer::LParToken>();
-  std::vector<std::unique_ptr<Expr>> Args;
+  std::vector<AST::Expr> Args;
   if (!CurTok.is<Lexer::RParToken>()) {
     while (true) {
-      if (auto Arg = parseExpression()) {
-        Args.push_back(std::move(Arg));
-      }
+      auto Arg = parseExpression();
+      Args.push_back(std::move(Arg));
 
       if (CurTok.is<Lexer::RParToken>()) {
         break;
       }
 
       if (!CurTok.is<Lexer::CommaToken>()) {
-        return logError("Expected ')' or ',' in argument list");
+        logError("Expected ')' or ',' in argument list");
       }
       getNextToken();
     }
@@ -90,77 +74,76 @@ std::unique_ptr<Expr> Parser::parseIdExpr() {
 
   consumeToken<Lexer::RParToken>();
 
-  return Expr::from(std::make_unique<CallExpr>(IdName, std::move(Args)));
+  return std::make_unique<AST::CallExpr>(IdName, std::move(Args));
 }
 
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
 ///   ::= parenexpr
-std::unique_ptr<Expr> Parser::parsePrimary() {
-  return std::visit(
-    overloaded{
-      [this](const Lexer::IdentifierToken &Arg) { return parseIdExpr(); },
-      [this](const Lexer::NumberToken &Arg) { return parseNumberExpr(); },
-      [this](const Lexer::LParToken &Arg) { return parseParenExpr(); },
-      [this](const auto &Arg) {
-        return logError("unknown token when expecting an expression");
-      }},
-    CurTok.getValue());
+AST::Expr Parser::parsePrimary() {
+  if (CurTok.is<Lexer::IdentifierToken>()) {
+    return parseIdExpr();
+  } else if (CurTok.is<Lexer::NumberToken>()) {
+    return parseNumberExpr();
+  } else if (CurTok.is<Lexer::LParToken>()) {
+    return parseParenExpr();
+  }
+  logError("unknown token when expecting an expression");
+  std::abort();
 }
 
 /// binoprhs
 ///   ::= ('+' primary)*
-std::unique_ptr<Expr> Parser::parseBinOpRHS(int ExprPrec,
-                                            std::unique_ptr<Expr> LHS) {
-  // If this is a binop, find its precedence.
+AST::Expr Parser::parseBinOpRHS(u32 PrevPrecedence, AST::Expr &LHS) {
   while (true) {
     if (!CurTok.is<Lexer::BinOpToken>()) {
-      return LHS;
+      return std::move(LHS);
     }
 
-    i32 TokPrec = getTokPrecedence();
+    const BinOpInfo *Info = CurTok.get<Lexer::BinOpToken>().Info;
+    u32 Precedence = Info->Precedence;
 
     // If this is a binop that binds at least as tightly as the current binop,
     // consume it, otherwise we are done.
-    if (TokPrec < ExprPrec) {
-      return LHS;
+    if (Precedence < PrevPrecedence) {
+      return std::move(LHS);
     }
 
-    // Okay, we know this is a binop.
-    char BinOp = consumeToken<Lexer::BinOpToken>().Op_;
+    // We can now consume
+    consumeToken<Lexer::BinOpToken>();
 
     // Parse the primary expression after the binary operator.
-    std::unique_ptr<Expr> RHS = parsePrimary();
+    AST::Expr RHS = parsePrimary();
 
     // If BinOp binds less tightly with RHS than the operator after RHS, let
     // the pending operator take RHS as its LHS.
-    if (CurTok.is<Lexer::BinOpToken>()) {
-      i32 NextPrec = getTokPrecedence();
-      if (TokPrec < NextPrec) {
-        RHS = parseBinOpRHS(TokPrec + 1, std::move(RHS));
-        if (!RHS) {
-          return nullptr;
-        }
+    if (auto NextBinOp = CurTok.getIf<Lexer::BinOpToken>()) {
+      u32 NextPrec = NextBinOp->Info->Precedence;
+      if (Precedence < NextPrec) {
+        RHS = parseBinOpRHS(Precedence + 1, RHS);
       }
     }
 
     // Merge LHS/RHS.
-    LHS = Expr::from(
-      std::make_unique<BinaryExpr>(BinOp, std::move(LHS), std::move(RHS)));
+    LHS =
+      std::make_unique<AST::BinaryExpr>(Info->Op, std::move(LHS), std::move(RHS));
   }
 }
 
 /// expression
 ///   ::= primary binoprhs
-std::unique_ptr<Expr> Parser::parseExpression() {
-  auto LHS = parsePrimary();
-  return parseBinOpRHS(0, std::move(LHS));
+AST::Expr Parser::parseExpression() {
+  AST::Expr LHS = parsePrimary();
+  if (CurTok.is<Lexer::BinOpToken>()) {
+    return parseBinOpRHS(0, LHS);
+  }
+  return LHS;
 }
 
 /// prototype
 ///   ::= id '(' id* ') -> returntype'
-std::unique_ptr<PrototypeAST> Parser::parsePrototype() {
+std::unique_ptr<AST::Prototype> Parser::parsePrototype() {
   Lexer::IdentifierToken NameToken =
     consumeToken<Lexer::IdentifierToken>("Expected function name in prototype");
   std::string FnName{NameToken.Name_};
@@ -171,118 +154,103 @@ std::unique_ptr<PrototypeAST> Parser::parsePrototype() {
   while (CurTok.is<Lexer::IdentifierToken>()) {
     Lexer::IdentifierToken IdToken = consumeToken<Lexer::IdentifierToken>();
     ArgNames.emplace_back(IdToken.Name_);
+    if (!CurTok.is<Lexer::RParToken>()) {
+      consumeToken<Lexer::CommaToken>();
+    }
   }
 
   consumeToken<Lexer::RParToken>("Expected ')' in prototype");
   consumeToken<Lexer::ArrowToken>();
 
-  // TODO: Make type system less ugly
-  RLType ReturnType;
+  RLType ReturnType = consumeToken<Lexer::RLTypeToken>("Expected return type").Info->Type;
 
-  static constexpr const char *BadRet = "Expected return type for function!";
-
-  if (CurTok.is<Lexer::KeywordVoidToken>()) {
-    ReturnType = RLType::Void;
-    consumeToken<Lexer::KeywordVoidToken>(BadRet);
-  } else if (CurTok.is<Lexer::KeywordI64Token>()) {
-    ReturnType = RLType::I64;
-    consumeToken<Lexer::KeywordI64Token>(BadRet);
-  } else {
-    abort();
-  }
-
-  return std::make_unique<PrototypeAST>(
-    FnName, std::move(ArgNames), ReturnType);
+  return std::make_unique<AST::Prototype>(FnName, std::move(ArgNames), ReturnType);
 }
 
 /// ifstatement
 /// if (expr) { statementsequence }
-std::unique_ptr<IfStatement> Parser::parseIfStatement() {
+std::unique_ptr<AST::IfStatement> Parser::parseIfStatement() {
   consumeToken<Lexer::KeywordIfToken>();
   consumeToken<Lexer::LParToken>();
-  std::unique_ptr<Expr> Cond = parseExpression();
+  AST::Expr Cond = parseExpression();
   consumeToken<Lexer::RParToken>();
   consumeToken<Lexer::LCurlyBraceToken>();
-  std::vector<std::unique_ptr<Statement>> Body = parseStatementSequence();
-  auto Res = std::make_unique<IfStatement>(std::move(Cond), std::move(Body));
+  std::vector<AST::Statement> Body = parseStatementSequence();
+  auto Res =
+    std::make_unique<AST::IfStatement>(std::move(Cond), std::move(Body));
   consumeToken<Lexer::RCurlyBraceToken>();
   return Res;
 }
 
 /// returnstatement
 /// return expr?;
-std::unique_ptr<ReturnStatement> Parser::parseReturnStatement() {
+std::unique_ptr<AST::ReturnStatement> Parser::parseReturnStatement() {
   consumeToken<Lexer::KeywordReturnToken>();
-  std::unique_ptr<Expr> Value = nullptr;
+  std::optional<AST::Expr> Value{};
   if (!CurTok.is<Lexer::SemicolonToken>()) {
     // return without return value
     Value = parseExpression();
   }
-  return std::make_unique<ReturnStatement>(std::move(Value));
+  return std::make_unique<AST::ReturnStatement>(std::move(Value));
 }
 
 /// statement ::= expr;
-std::unique_ptr<Statement> Parser::parseStatement() {
-  std::unique_ptr<Statement> Res = std::visit<std::unique_ptr<Statement>>(
-    overloaded{[this](const Lexer::KeywordIfToken &) {
-                 return std::make_unique<Statement>(parseIfStatement());
+AST::Statement Parser::parseStatement() {
+  return std::visit<AST::Statement>(
+    overloaded{[this](const Lexer::KeywordIfToken &) -> AST::Statement {
+                 return parseIfStatement();
                },
-               [this](const Lexer::KeywordReturnToken &) {
-                 auto Res = std::make_unique<Statement>(parseReturnStatement());
+               [this](const Lexer::KeywordReturnToken &) -> AST::Statement {
+                 AST::Statement Res = parseReturnStatement();
                  consumeToken<Lexer::SemicolonToken>();
                  return Res;
                },
-               [this](const auto &) {
-                 auto Res = std::make_unique<Statement>(parseExpression());
+               [this](const auto &) -> AST::Statement {
+                 AST::Statement Res =
+                   std::make_unique<AST::Expr>(parseExpression());
                  consumeToken<Lexer::SemicolonToken>();
                  return Res;
                }},
     CurTok.getValue());
-  return Res;
 }
 
-std::vector<std::unique_ptr<Statement>> Parser::parseStatementSequence() {
-  std::vector<std::unique_ptr<Statement>> StatementSequence;
-  while (true) {
-    if (std::unique_ptr<Statement> S = parseStatement()) {
-      StatementSequence.emplace_back(std::move(S));
-    }
-    if (CurTok.is<Lexer::RCurlyBraceToken>()) {
-      break;
-    }
+std::vector<AST::Statement> Parser::parseStatementSequence() {
+  std::vector<AST::Statement> StatementSequence;
+  while (!CurTok.is<Lexer::RCurlyBraceToken>()) {
+    StatementSequence.emplace_back(parseStatement());
   }
   return StatementSequence;
 }
 
 /// definition ::= 'def' prototype { statementsequence }
-std::unique_ptr<FunctionAST> Parser::parseDefinition() {
+std::unique_ptr<AST::Function> Parser::parseDefinition() {
   consumeToken<Lexer::KeywordDefToken>();
   auto Proto = parsePrototype();
   if (!Proto) {
     abort();
   }
   consumeToken<Lexer::LCurlyBraceToken>();
-  std::vector<std::unique_ptr<Statement>> SS = parseStatementSequence();
+  std::vector<AST::Statement> SS = parseStatementSequence();
   consumeToken<Lexer::RCurlyBraceToken>();
 
-  return std::make_unique<FunctionAST>(std::move(Proto), std::move(SS));
+  return std::make_unique<AST::Function>(std::move(Proto), std::move(SS));
 }
 
 /// external ::= 'extern' prototype
-std::unique_ptr<PrototypeAST> Parser::parseExtern() {
+std::unique_ptr<AST::Prototype> Parser::parseExtern() {
   consumeToken<Lexer::KeywordExternToken>();
-  std::unique_ptr<PrototypeAST> Res = parsePrototype();
+  std::unique_ptr<AST::Prototype> Res = parsePrototype();
   consumeToken<Lexer::SemicolonToken>();
   return Res;
 }
 
 /// top ::= definition | external
-std::unique_ptr<ModuleAST> Parser::parseModule() {
-  std::vector<TopLevelItem> TLIs;
+std::unique_ptr<AST::Module> Parser::parseModule() {
+  std::vector<AST::Module::TopLevelItem> TLIs;
 
   while (!CurTok.is<Lexer::EOFToken>()) {
-    std::optional<TopLevelItem> ParsedTLI =
-      std::visit<std::optional<TopLevelItem>>(
+    std::optional<AST::Module::TopLevelItem> ParsedTLI =
+      std::visit<std::optional<AST::Module::TopLevelItem>>(
         overloaded{
           [this](const Lexer::KeywordDefToken &Arg) {
             return parseDefinition();
@@ -305,14 +273,14 @@ std::unique_ptr<ModuleAST> Parser::parseModule() {
     }
   }
 
-  return std::make_unique<ModuleAST>(std::move(TLIs));
+  return std::make_unique<AST::Module>(std::move(TLIs));
 }
 
 Parser::Parser(const char *ModulePath)
     : Lexer_{std::make_unique<Lexer>(ModulePath)}, CurTok{Lexer_->getTok()} {}
 
-std::unique_ptr<ModuleAST> Parser::parse(const char *ModulePath) {
+std::unique_ptr<AST::Module> Parser::parse(const char *ModulePath) {
   Parser P{ModulePath};
-  std::unique_ptr<ModuleAST> AST = P.parseModule();
+  std::unique_ptr<AST::Module> AST = P.parseModule();
   return AST;
 }
