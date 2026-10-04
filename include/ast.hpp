@@ -15,6 +15,7 @@ struct BinaryExpr;
 struct CallExpr;
 struct IfStatement;
 struct ReturnStatement;
+struct LocalDefStatement;
 struct Prototype;
 struct Function;
 struct Module;
@@ -23,8 +24,11 @@ using Expr = std::variant<std::unique_ptr<NumberExpr>,
                           std::unique_ptr<VariableExpr>,
                           std::unique_ptr<BinaryExpr>,
                           std::unique_ptr<CallExpr>>;
-using Statement = std::
-  variant<std::unique_ptr<Expr>, std::unique_ptr<IfStatement>, std::unique_ptr<ReturnStatement>>;
+
+using Statement = std::variant<std::unique_ptr<Expr>,
+                               std::unique_ptr<IfStatement>,
+                               std::unique_ptr<ReturnStatement>,
+                               std::unique_ptr<LocalDefStatement>>;
 
 // Not used in AST itself, but used by other consumers.
 using ASTNodeView = std::variant<const NumberExpr *,
@@ -33,6 +37,7 @@ using ASTNodeView = std::variant<const NumberExpr *,
                                  const CallExpr *,
                                  const IfStatement *,
                                  const ReturnStatement *,
+                                 const LocalDefStatement *,
                                  const Prototype *,
                                  const Function *,
                                  const Module *>;
@@ -81,6 +86,15 @@ struct ReturnStatement {
   std::optional<Expr> Value;
 
   explicit ReturnStatement(std::optional<Expr> &&Value);
+};
+
+struct LocalDefStatement {
+  std::string Name;
+  RLType Type;
+  Expr Value;
+
+  LocalDefStatement(std::string_view Name, RLType Type, Expr &&Value)
+      : Name{Name}, Type{Type}, Value{std::move(Value)} {}
 };
 
 /// PrototypeAST - This struct represents the "prototype" for a function,

@@ -34,7 +34,7 @@ const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp) {
 const BinOpInfo *searchBinOpInfoTable(const std::string &SV) {
   if (auto Element = std::ranges::find_if(
         BinOpInfoTable,
-        [SV](const auto &Entry) { return Entry.PrettyRepr_ == SV; });
+        [SV](const auto &Entry) { return Entry.Repr == SV; });
       Element != BinOpInfoTable.end()) {
     return Element;
   }
@@ -54,7 +54,7 @@ const RLTypeInfo *searchRLTypeInfoTable(RLType Type) {
 const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV) {
   if (auto Element = std::ranges::find_if(
         RLTypeInfoTable,
-        [SV](const RLTypeInfo &Entry) { return Entry.PrettyRepr_ == SV; });
+        [SV](const RLTypeInfo &Entry) { return Entry.Repr == SV; });
       Element != RLTypeInfoTable.end()) {
     return Element;
   }
@@ -62,21 +62,21 @@ const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV) {
 }
 
 char Lexer::nextChar() {
-  PrevChar = LastChar;
   LastChar = ProgramStream.get();
-  ++Col;
-  if (PrevChar == '\n') {
+  if (LastChar == '\n') {
     ++Line;
     Col = 1;
+  } else {
+    ++Col;
   }
   return LastChar;
 }
 
-Lexer::LocInfo Lexer::getLocInfo() {
+SourceLocation Lexer::getLocInfo() {
   return {Line, Col};
 }
 
-Lexer::Token Lexer::getTok() {
+Token Lexer::consumeTok() {
   // Skip any whitespace.
   while (std::isspace(LastChar)) {
     nextChar();
@@ -88,7 +88,7 @@ Lexer::Token Lexer::getTok() {
     do {
       IdentifierStr += LastChar;
       nextChar();
-    } while (std::isalnum(LastChar));
+    } while (std::isalnum(LastChar) || LastChar == '_');
 
     // TODO: Make centralized tables.. this is too much effort
     if (IdentifierStr == "def") {
@@ -133,7 +133,7 @@ Lexer::Token Lexer::getTok() {
     } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
 
     if (LastChar != EOF) {
-      return getTok();
+      return consumeTok();
     }
   }
 
@@ -165,32 +165,63 @@ Lexer::Token Lexer::getTok() {
     return RCurlyBraceToken{};
   } else if (ToMatch == ':') {
     return ColonToken{};
+  } else if (ToMatch == '=') {
+    return EqualsToken{};
   }
 
   // Should be unreachable
-  std::cerr << "Unknown token type!" << std::endl;
+  logError("Unknown token type!");
   abort();
 }
 
-Lexer::Lexer(const char *ModulePath)
-    : ProgramStream{std::ifstream{ModulePath}} {
+void Lexer::lex() {
+  do {
+    SourceLocation Loc = getLocInfo();
+    Tokens.push_back(consumeTok());
+    Tokens.back().Loc = Loc;
+  } while (!Tokens.back().is<EOFToken>());
+  CurTok = Tokens.data();
+}
+
+const std::vector<std::string> &Lexer::getProgramLines() {
+  return ProgramLines;
+}
+const Token *Lexer::getTok() {
+  const Token* Res = CurTok;
+  ++CurTok;
+  return Res;
+}
+
+const Token* Lexer::peek() {
+  return CurTok + 1;
+}
+
+Lexer::Lexer(const char* ModulePath)
+    : ProgramStream{std::ifstream{ModulePath}}, ModulePath(ModulePath) {
   if (ProgramStream.fail()) {
     std::cerr << "Failure opening file " << ModulePath << std::endl;
     std::exit(1);
   }
+  std::ifstream Tmp{ModulePath};
+  std::string Line;
+  while (std::getline(Tmp, Line)) { 
+    ProgramLines.push_back(Line);
+  }
+
   nextChar();
+  lex();
 }
 
-std::string_view Lexer::Token::print() const {
+std::string_view Token::print() const {
   return std::visit<std::string_view>(
-    overloaded{[](const BinOpToken &Arg) { return Arg.Info->PrettyRepr_; },
-               [](const RLTypeToken &Arg) -> const std::string & { return Arg.Info->PrettyRepr_; },
-               [](const auto &Value) -> const std::string & {
-                 return Value.PrettyRepr_;
+    overloaded{[](const BinOpToken &Arg) -> std::string_view { return Arg.Info->Repr; },
+               [](const RLTypeToken &Arg) -> std::string_view { return Arg.Info->Repr; },
+               [](const auto &Value) -> std::string_view {
+                 return Value.TokenName;
                }},
     Value);
 }
 
-void Lexer::Token::dump() const {
+void Token::dump() const {
   std::cerr << print() << std::endl;
 }

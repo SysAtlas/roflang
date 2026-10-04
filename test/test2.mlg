@@ -1,8 +1,6 @@
 def test(x, y) -> i64 {
-  a: i64 = 5;
-  
   if (x < 7) {
-    return;
+    return 5;
   }
   return x + y;
 }

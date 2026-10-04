@@ -49,6 +49,10 @@ void getSubtree(const IfStatement &S, std::vector<ASTNodeView> &Acc) {
   }
 }
 
+void getSubtree(const LocalDefStatement& S, std::vector<ASTNodeView> &Acc) {
+
+}
+
 void getSubtree(const ReturnStatement &S, std::vector<ASTNodeView> &Acc) {
   Acc.emplace_back(&S);
   if (S.Value) {

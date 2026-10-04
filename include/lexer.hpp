@@ -2,9 +2,9 @@
 
 #include "helper.hpp"
 #include <fstream>
-#include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 //===----------------------------------------------------------------------===//
 // Lexer
@@ -15,14 +15,19 @@ enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq };
 enum class RLType { I64, Void };
 
 struct BinOpInfo {
-  BinOpType Op;
-  u32 Precedence;
-  std::string PrettyRepr_;
+  const BinOpType Op;
+  const u32 Precedence;
+  const std::string Repr;
 };
 
 struct RLTypeInfo {
-  RLType Type;
-  std::string PrettyRepr_;
+  const RLType Type;
+  const std::string Repr;
+};
+
+struct SourceLocation {
+  u32 Line;
+  u32 Col;
 };
 
 const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp);
@@ -31,156 +36,182 @@ const BinOpInfo *searchBinOpInfoTable(const std::string &SV);
 const RLTypeInfo *searchRLTypeInfoTable(RLType Type);
 const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV);
 
+struct EOFToken {
+  static constexpr std::string TokenName = "EOF";
+};
+
+// Reserved keywords
+struct KeywordDefToken {
+  static constexpr std::string_view TokenName = "def";
+};
+struct KeywordExternToken {
+  static constexpr std::string_view TokenName = "extern";
+};
+struct KeywordIfToken {
+  static constexpr std::string_view TokenName = "if";
+};
+struct KeywordElseToken {
+  static constexpr std::string_view TokenName = "else";
+};
+struct KeywordReturnToken {
+  static constexpr std::string_view TokenName = "return";
+};
+// Types
+struct RLTypeToken {
+  const RLTypeInfo *Info;
+  static constexpr std::string_view TokenName = "type";
+
+  RLTypeToken(const RLType &Type) : Info(searchRLTypeInfoTable(Type)) {}
+};
+
+// -----------------
+
+struct IdentifierToken {
+  std::string Name_;
+  static constexpr std::string_view TokenName = "identifier";
+
+  IdentifierToken(std::string_view Name) : Name_{Name} {}
+};
+
+struct NumberToken {
+  i64 NumVal_;
+  static constexpr std::string_view TokenName = "number";
+
+  NumberToken(i64 NumVal) : NumVal_{NumVal} {}
+};
+
+struct BinOpToken {
+  const BinOpInfo *Info;
+  static constexpr std::string_view TokenName = "binary operator";
+
+  BinOpToken(BinOpType Op) : Info{searchBinOpInfoTable(Op)} {}
+};
+
+// Punctuation
+struct LParToken {
+  static constexpr std::string_view TokenName = "(";
+};
+struct RParToken {
+  static constexpr std::string_view TokenName = ")";
+};
+struct LCurlyBraceToken {
+  static constexpr std::string_view TokenName = "{";
+};
+struct RCurlyBraceToken {
+  static constexpr std::string_view TokenName = "}";
+};
+struct CommaToken {
+  static constexpr std::string_view TokenName = ",";
+};
+struct SemicolonToken {
+  static constexpr std::string_view TokenName = ";";
+};
+struct ArrowToken {
+  static constexpr std::string_view TokenName = "->";
+};
+struct ColonToken {
+  static constexpr std::string_view TokenName = ":";
+};
+struct EqualsToken {
+  static constexpr std::string_view TokenName = "=";
+};
+
+// New token types should always be added to this variant.
+class Token {
+  using TokenType = std::variant<EOFToken,
+                                 KeywordDefToken,
+                                 KeywordExternToken,
+                                 IdentifierToken,
+                                 NumberToken,
+                                 BinOpToken,
+                                 LParToken,
+                                 RParToken,
+                                 CommaToken,
+                                 SemicolonToken,
+                                 LCurlyBraceToken,
+                                 RCurlyBraceToken,
+                                 KeywordIfToken,
+                                 KeywordElseToken,
+                                 ArrowToken,
+                                 KeywordReturnToken,
+                                 ColonToken,
+                                 RLTypeToken,
+                                 EqualsToken>;
+  TokenType Value;
+
+public:
+  SourceLocation Loc{};
+
+  const TokenType &getValue() const {
+    return Value;
+  }
+
+  template <typename T> bool is() const {
+    return std::holds_alternative<T>(Value);
+  }
+
+  template <typename T> const T *get() const {
+    return &std::get<T>(Value);
+  }
+
+  template <typename T> const T *getIf() const {
+    auto *Res = get_if<T>(&Value);
+    if (!Res) {
+      return nullptr;
+    }
+    return Res;
+  }
+
+  std::string_view print() const;
+
+  void dump() const;
+
+  template <typename T> Token(T Value) : Value(Value) {}
+};
+
 class Lexer {
 private:
+  std::vector<Token> Tokens;
+  const Token *CurTok = nullptr;
+  const char* ModulePath;
+
   u32 Line = 1;
   u32 Col = 1;
+
+  SourceLocation getLocInfo();
 
   i32 LastChar;
   i32 PrevChar = ' ';
 
   std::ifstream ProgramStream;
+  std::vector<std::string> ProgramLines;
 
   void updateLineCounter();
 
   // Set LastChar to next char of ProgramStream and return LastChar
   char nextChar();
 
+  Token consumeTok();
+
+  void lex();
+
+  void logError(std::string_view Str) {
+    auto FullMessage = std::format("Lexer error: {}\nAt {}:{}\n{}\n{}",
+                                  Str,
+                                  ModulePath,
+                                  Line,
+                                  ProgramLines[Line - 1], std::string(Col - 1, ' ') + "^");
+    std::cerr << FullMessage << '\n';
+    exit(1);
+  }
+
 public:
-  struct EOFToken {
-    std::string PrettyRepr_ = "EOF";
-  };
+  const std::vector<std::string> &getProgramLines();
+  // Get current token and advance
+  const Token *getTok();
 
-  // Reserved keywords
-  struct KeywordDefToken {
-    std::string PrettyRepr_ = "def";
-  };
-  struct KeywordExternToken {
-    std::string PrettyRepr_ = "extern";
-  };
-  struct KeywordIfToken {
-    std::string PrettyRepr_ = "if";
-  };
-  struct KeywordElseToken {
-    std::string PrettyRepr_ = "else";
-  };
-  struct KeywordReturnToken {
-    std::string PrettyRepr_ = "return";
-  };
-  // Types
-  struct RLTypeToken {
-    const RLTypeInfo *Info;
+  // Return next token, but don't advance
+  const Token *peek();
 
-    RLTypeToken(const RLType &Type) : Info(searchRLTypeInfoTable(Type)) {}
-  };
-
-  // -----------------
-
-  struct IdentifierToken {
-    std::string Name_;
-    std::string PrettyRepr_;
-
-    IdentifierToken(std::string_view Name) : Name_{Name}, PrettyRepr_{Name} {}
-  };
-
-  struct NumberToken {
-    i64 NumVal_;
-    std::string PrettyRepr_;
-
-    NumberToken(i64 NumVal)
-        : NumVal_{NumVal}, PrettyRepr_{std::to_string(NumVal_)} {}
-  };
-
-  struct BinOpToken {
-    const BinOpInfo* Info;
-
-    BinOpToken(BinOpType Op) : Info{searchBinOpInfoTable(Op)} {}
-  };
-
-  // Punctuation
-  struct LParToken {
-    std::string PrettyRepr_ = "(";
-  };
-  struct RParToken {
-    std::string PrettyRepr_ = ")";
-  };
-  struct LCurlyBraceToken {
-    std::string PrettyRepr_ = "{";
-  };
-  struct RCurlyBraceToken {
-    std::string PrettyRepr_ = "}";
-  };
-  struct CommaToken {
-    std::string PrettyRepr_ = ",";
-  };
-  struct SemicolonToken {
-    std::string PrettyRepr_ = ";";
-  };
-  struct ArrowToken {
-    std::string PrettyRepr_ = "->";
-  };
-  struct ColonToken {
-    std::string PrettyRepr_ = ":";
-  };
-
-  // New token types should always be added to this variant.
-  class Token {
-    using TokenType = std::variant<EOFToken,
-                                   KeywordDefToken,
-                                   KeywordExternToken,
-                                   IdentifierToken,
-                                   NumberToken,
-                                   BinOpToken,
-                                   LParToken,
-                                   RParToken,
-                                   CommaToken,
-                                   SemicolonToken,
-                                   LCurlyBraceToken,
-                                   RCurlyBraceToken,
-                                   KeywordIfToken,
-                                   KeywordElseToken,
-                                   ArrowToken,
-                                   KeywordReturnToken,
-                                   ColonToken,
-                                   RLTypeToken>;
-    TokenType Value;
-
-  public:
-    const TokenType &getValue() {
-      return Value;
-    }
-
-    template <typename T> bool is() const {
-      return std::holds_alternative<T>(Value);
-    }
-
-    template <typename T> T get() {
-      return std::get<T>(Value);
-    }
-
-    template <typename T> std::optional<T> getIf() {
-
-      T *Res = get_if<T>(&Value);
-      if (!Res) {
-        return std::nullopt;
-      }
-      return *Res;
-    }
-
-    std::string_view print() const;
-
-    void dump() const;
-
-    template <typename T> Token(T Value) : Value(Value) {}
-  };
-
-  struct LocInfo {
-    u32 Line;
-    u32 Col;
-  };
-
-  LocInfo getLocInfo();
-  Token getTok();
-
-  Lexer(const char *ModulePath);
+  Lexer(const char* ModulePath);
 };

@@ -35,6 +35,7 @@ private:
   void codegen(const AST::Statement &SNode);
   void codegen(const AST::IfStatement &SNode);
   void codegen(const AST::ReturnStatement& SNode);
+  void codegen(const AST::LocalDefStatement& SNode);
 
   llvm::Function *codegen(const AST::Prototype &PNode);
   llvm::Function *codegen(const AST::Function &FNode);

@@ -117,6 +117,9 @@ void LLVMCodeGen::codegen(const AST::ReturnStatement &SNode) {
   Builder->CreateBr(EndBB);
 }
 
+void LLVMCodeGen::codegen(const AST::LocalDefStatement& SNode) { 
+}
+
 void LLVMCodeGen::codegen(const AST::Statement &SNode) {
   std::visit(overloaded{[this](const auto &Arg) { codegen(*Arg); }}, SNode);
 }

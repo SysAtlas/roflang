@@ -1,0 +1,7 @@
+def variable_test(x: i64, y: i64) -> i64 {
+  local_var: i64 = 1337;
+  if (local_var < 228) {
+    return local_var - 1;
+  }
+  return local_var + 1;
+}
