@@ -1,7 +1,6 @@
 #pragma once
 
-#include <helper.hpp>
-#include <lexer.hpp>
+#include <common.hpp>
 #include <memory>
 #include <string>
 #include <variant>

@@ -1,9 +1,9 @@
-#include <ast.hpp>
+#include <frontend/ast.hpp>
 #include <cassert>
-#include <helper.hpp>
-#include <lexer.hpp>
+#include <common.hpp>
+#include <frontend/lexer.hpp>
 #include <memory>
-#include <parser.hpp>
+#include <frontend/parser.hpp>
 #include <variant>
 
 //===----------------------------------------------------------------------===//

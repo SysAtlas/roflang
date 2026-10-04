@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ast.hpp>
+#include <frontend/ast.hpp>
 #include <memory>
 
 class X86CodeGen {

@@ -1,9 +1,9 @@
-#include "sema.hpp"
+#include <frontend/sema.hpp>
 #include <driver.hpp>
 
-#include <llvmcodegen.hpp>
+#include <codegen/llvmcodegen.hpp>
 #include <llvm/IR/PassManager.h>
-#include <parser.hpp>
+#include <frontend/parser.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>

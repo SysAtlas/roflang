@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ast.hpp>
+#include <frontend/ast.hpp>
 #include <llvm/IR/IRBuilder.h>
 #include <memory>
 #include <unordered_map>

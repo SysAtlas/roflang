@@ -1,8 +1,8 @@
 #pragma once
 
-#include "helper.hpp"
-#include <ast.hpp>
-#include <lexer.hpp>
+#include <common.hpp>
+#include <frontend/ast.hpp>
+#include <frontend/lexer.hpp>
 #include <memory>
 
 class Parser {

@@ -1,6 +1,6 @@
-#include "helper.hpp"
-#include "lexer.hpp"
-#include <ast.hpp>
+#include <common.hpp>
+#include <frontend/lexer.hpp>
+#include <frontend/ast.hpp>
 #include <iostream>
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/Function.h>
@@ -8,7 +8,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
-#include <llvmcodegen.hpp>
+#include <codegen/llvmcodegen.hpp>
 #include <memory>
 #include <variant>
 

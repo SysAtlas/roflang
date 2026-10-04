@@ -43,3 +43,29 @@ inline void debugPrint_(std::string_view Msg) {
 #define DBGPRINT(x) ((void)0)
 
 #endif
+
+enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq };
+enum class RLType { I64, I32, I16, I8, U64, U32, U16, U8, Void };
+
+struct BinOpInfo {
+  const BinOpType Op;
+  const u32 Precedence;
+  const std::string Repr;
+};
+
+struct RLTypeInfo {
+  const RLType Type;
+  const std::string Repr;
+  u32 SizeInBits;
+};
+
+struct SourceLocation {
+  u32 Line;
+  u32 Col;
+};
+
+const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp);
+const BinOpInfo *searchBinOpInfoTable(const std::string &SV);
+
+const RLTypeInfo *searchRLTypeInfoTable(RLType Type);
+const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV);

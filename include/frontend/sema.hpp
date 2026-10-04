@@ -1,7 +1,7 @@
 #pragma once
 
-#include "helper.hpp"
-#include <ast.hpp>
+#include <common.hpp>
+#include <frontend/ast.hpp>
 #include <variant>
 
 class Sema {
