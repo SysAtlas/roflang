@@ -1,4 +1,4 @@
-extern putchar(x: i32) -> i32;
+extern putchar(i32) -> i32;
 
 def print_alphabet() -> void {
   counter: i32 = 65;

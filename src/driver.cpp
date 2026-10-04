@@ -2,6 +2,7 @@
 #include <driver.hpp>
 
 #include <codegen/llvmcodegen.hpp>
+#include <codegen/x86codegen.hpp>
 #include <llvm/IR/PassManager.h>
 #include <frontend/parser.hpp>
 
@@ -26,5 +27,21 @@ void LLVMDriver::compile() {
     std::error_code EC;
     llvm::raw_fd_stream Result{OutputFilePath, EC};
     M->print(Result, nullptr);
+  }
+}
+
+X86Driver::X86Driver(std::string_view InputFilePath, std::string_view OutputFilePath) : InputFilePath(InputFilePath), OutputFilePath(OutputFilePath) {}
+
+void X86Driver::compile() {
+  std::unique_ptr<AST::Module> AST = Parser::parse(InputFilePath.data());
+  Sema::analyze(*AST);
+
+  std::string Result = X86::CodeGen::generateAsm(std::move(AST));
+  
+  if (OutputFilePath == "-") {
+    std::cout << Result;
+  } else {
+    std::ofstream Res{OutputFilePath};
+    Res << Result;
   }
 }

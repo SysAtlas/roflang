@@ -121,10 +121,11 @@ struct WhileStatement {
 };
 
 struct FunctionArgument {
-  std::string Name;
+  // Function argument names are optional and must not be specified in an external function.
+  std::optional<std::string> Name;
   const RLTypeInfo *TypeInfo;
 
-  FunctionArgument(const std::string &Name, const RLTypeInfo *TypeInfo)
+  FunctionArgument(std::optional<std::string> Name, const RLTypeInfo *TypeInfo)
       : Name{Name}, TypeInfo{TypeInfo} {}
 };
 
@@ -135,10 +136,11 @@ struct Prototype {
   std::string Name;
   std::vector<FunctionArgument> Args;
   const RLTypeInfo *ReturnTypeInfo;
+  bool IsExtern;
 
   Prototype(const std::string &Name,
             std::vector<FunctionArgument> &&Args,
-            const RLTypeInfo *ReturnTypeInfo);
+            const RLTypeInfo *ReturnTypeInfo, bool IsExtern);
 };
 
 /// Function - This struct represents a function definition itself.

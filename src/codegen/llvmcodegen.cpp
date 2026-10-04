@@ -64,6 +64,8 @@ Value *LLVMCodeGen::codegen(const AST::BinaryExpr &BNode) {
     return Builder->CreateMul(L, R, "mul");
   case BinOpType::Div:
     return Builder->CreateSDiv(L, R, "div");
+  case BinOpType::Mod:
+    return Builder->CreateURem(L, R, "mod");
   case BinOpType::Lt:
     L = Builder->CreateICmpSLT(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
@@ -182,7 +184,8 @@ Function *LLVMCodeGen::codegen(const AST::Prototype &PNode) {
   // Set names for all arguments.
   unsigned Idx = 0;
   for (llvm::Argument &Arg : F->args()) {
-    Arg.setName(PNode.Args[Idx++].Name);
+    const auto& NameOpt = PNode.Args[Idx++].Name;
+    Arg.setName(NameOpt ? *NameOpt : "arg");
   }
 
   return F;
@@ -245,7 +248,7 @@ Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
   return TheFunction;
 }
 
-Module *LLVMCodeGen::codegen() {
+void LLVMCodeGen::codegen() {
   for (const AST::Module::TopLevelItem &TLI : ModuleTree->TopLevelItems) {
     std::visit(
       overloaded{
@@ -253,5 +256,4 @@ Module *LLVMCodeGen::codegen() {
       },
       TLI);
   }
-  return TheModule.get();
 }

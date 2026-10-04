@@ -5,6 +5,7 @@ static constexpr std::array BinOpInfoTable = {
   BinOpInfo{BinOpType::Sub, 20, "-"},
   BinOpInfo{BinOpType::Mul, 40, "*"},
   BinOpInfo{BinOpType::Div, 40, "/"},
+  BinOpInfo{BinOpType::Mod, 40, "%"},
   BinOpInfo{BinOpType::Lt, 10, "<"},
   BinOpInfo{BinOpType::Leq, 10, "<="},
   BinOpInfo{BinOpType::Gt, 10, ">"},

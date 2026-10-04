@@ -44,7 +44,7 @@ inline void debugPrint_(std::string_view Msg) {
 
 #endif
 
-enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq };
+enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq, Mod };
 enum class RLType { I64, I32, I16, I8, U64, U32, U16, U8, Void };
 
 struct BinOpInfo {

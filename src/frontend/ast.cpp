@@ -16,8 +16,8 @@ ReturnStatement::ReturnStatement(std::optional<Expr> &&Value)
 
 Prototype::Prototype(const std::string &Name,
                      std::vector<FunctionArgument>&& Args,
-                     const RLTypeInfo* ReturnTypeInfo)
-    : Name(Name), Args(std::move(Args)), ReturnTypeInfo{ReturnTypeInfo} {}
+                     const RLTypeInfo* ReturnTypeInfo, bool IsExtern)
+    : Name(Name), Args(std::move(Args)), ReturnTypeInfo{ReturnTypeInfo}, IsExtern{IsExtern} {}
 
 void getSubtree(const NumberExpr &E, std::vector<ASTNodeView> &Acc) {
   Acc.emplace_back(&E);

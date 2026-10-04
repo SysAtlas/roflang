@@ -4,6 +4,7 @@
 #include <frontend/ast.hpp>
 #include <frontend/lexer.hpp>
 #include <memory>
+#include <source_location>
 
 class Parser {
 private:
@@ -14,7 +15,7 @@ private:
   [[nodiscard]] std::unique_ptr<AST::Prototype> parseExtern();
   [[nodiscard]] std::unique_ptr<AST::Function> parseTopLevelExpr();
   [[nodiscard]] std::unique_ptr<AST::Function> parseDefinition();
-  [[nodiscard]] std::unique_ptr<AST::Prototype> parsePrototype();
+  [[nodiscard]] std::unique_ptr<AST::Prototype> parsePrototype(bool IsExtern = false);
   [[nodiscard]] AST::Expr parseExpression();
   [[nodiscard]] AST::Expr parseBinOpRHS(u32 ExprPrec, AST::Expr &LHS);
   [[nodiscard]] AST::Statement parseStatement();
@@ -34,15 +35,15 @@ private:
 
 
   // Logging
-  void logError(std::string_view Str);
+  void logError(std::string_view Str, std::source_location ParserLoc);
 
   const Token *getNextToken();
   const Token *peek();
 
-  template <typename T> const T *consumeToken() {
+  template <typename T> const T *consumeToken(std::source_location Loc = std::source_location::current()) {
     const T *Res = CurTok->getIf<T>();
     if (!Res) {
-      logError(std::format("Expected {}", T::TokenName));
+      logError(std::format("Expected {}", T::TokenName), Loc);
     }
     DBGPRINT(std::format("Parser: consumed token {}", CurTok->print()));
     getNextToken();

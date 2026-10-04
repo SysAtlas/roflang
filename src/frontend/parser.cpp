@@ -1,9 +1,9 @@
-#include <frontend/ast.hpp>
 #include <cassert>
 #include <common.hpp>
+#include <frontend/ast.hpp>
 #include <frontend/lexer.hpp>
-#include <memory>
 #include <frontend/parser.hpp>
+#include <memory>
 #include <variant>
 
 //===----------------------------------------------------------------------===//
@@ -20,9 +20,10 @@ const Token *Parser::peek() {
 }
 
 /// LogError* - These are little helper functions for error handling.
-void Parser::logError(std::string_view Str) {
+void Parser::logError(std::string_view Str, std::source_location ParserLoc = std::source_location::current()) {
   SourceLocation Loc = CurTok->Loc;
-  auto FullMessage = std::format("Parser error: {}\nAt {}:{}\n{}\n{}",
+  auto FullMessage = std::format("Parser error at {}:{}: {}\nAt {}:{}\n{}\n{}",
+                                 ParserLoc.file_name(), ParserLoc.line(),
                                  Str,
                                  ModulePath,
                                  Loc.Line,
@@ -145,21 +146,24 @@ AST::Expr Parser::parseExpression() {
 }
 
 AST::FunctionArgument Parser::parseFunctionArgument() {
-  const std::string &Name = consumeToken<IdentifierToken>()->Name_;
-  consumeToken<ColonToken>();
+  std::optional<std::string> Name;
+  if (CurTok->is<IdentifierToken>()) {
+    Name = consumeToken<IdentifierToken>()->Name_;
+    consumeToken<ColonToken>();
+  }
   const RLTypeInfo *TypeInfo = consumeToken<RLTypeToken>()->Info;
   return AST::FunctionArgument{Name, TypeInfo};
 }
 /// prototype
 ///   ::= id '(' id* ') -> returntype'
-std::unique_ptr<AST::Prototype> Parser::parsePrototype() {
+std::unique_ptr<AST::Prototype> Parser::parsePrototype(bool IsExtern) {
   const IdentifierToken *NameToken = consumeToken<IdentifierToken>();
   std::string FnName{NameToken->Name_};
 
   consumeToken<LParToken>();
 
   std::vector<AST::FunctionArgument> Args;
-  while (CurTok->is<IdentifierToken>()) {
+  while (CurTok->is<IdentifierToken>() || CurTok->is<RLTypeToken>()) {
     Args.push_back(parseFunctionArgument());
     if (!CurTok->is<RParToken>()) {
       consumeToken<CommaToken>();
@@ -172,7 +176,7 @@ std::unique_ptr<AST::Prototype> Parser::parsePrototype() {
   const RLTypeInfo *ReturnTypeInfo = consumeToken<RLTypeToken>()->Info;
 
   return std::make_unique<AST::Prototype>(
-    FnName, std::move(Args), ReturnTypeInfo);
+    FnName, std::move(Args), ReturnTypeInfo, IsExtern);
 }
 
 /// ifstatement
@@ -224,8 +228,7 @@ Parser::parseAssignmentStmt() {
   return std::make_unique<AST::AssignmentStatement>(Name, std::move(Value));
 }
 
-[[nodiscard]] std::unique_ptr<AST::WhileStatement>
-Parser::parseWhileStmt() {
+[[nodiscard]] std::unique_ptr<AST::WhileStatement> Parser::parseWhileStmt() {
   consumeToken<KeywordWhileToken>();
   consumeToken<LParToken>();
   AST::Expr Cond = parseExpression();
@@ -233,7 +236,8 @@ Parser::parseWhileStmt() {
   consumeToken<LCurlyBraceToken>();
   std::vector<AST::Statement> Body = parseStatementSequence();
   consumeToken<RCurlyBraceToken>();
-  return std::make_unique<AST::WhileStatement>(std::move(Cond), std::move(Body));
+  return std::make_unique<AST::WhileStatement>(std::move(Cond),
+                                               std::move(Body));
 }
 
 /// statement ::= expr;
@@ -242,8 +246,8 @@ AST::Statement Parser::parseStatement() {
     overloaded{[this](const KeywordIfToken &) -> AST::Statement {
                  return parseIfStmt();
                },
-               [this](const KeywordWhileToken&) -> AST::Statement {
-                return parseWhileStmt();
+               [this](const KeywordWhileToken &) -> AST::Statement {
+                 return parseWhileStmt();
                },
                [this](const KeywordReturnToken &) -> AST::Statement {
                  AST::Statement Res = parseReturnStmt();
@@ -281,10 +285,7 @@ std::vector<AST::Statement> Parser::parseStatementSequence() {
 /// definition ::= 'def' prototype { statementsequence }
 std::unique_ptr<AST::Function> Parser::parseDefinition() {
   consumeToken<KeywordDefToken>();
-  auto Proto = parsePrototype();
-  if (!Proto) {
-    abort();
-  }
+  auto Proto = parsePrototype(true);
   consumeToken<LCurlyBraceToken>();
   std::vector<AST::Statement> SS = parseStatementSequence();
   consumeToken<RCurlyBraceToken>();
@@ -295,7 +296,7 @@ std::unique_ptr<AST::Function> Parser::parseDefinition() {
 /// external ::= 'extern' prototype
 std::unique_ptr<AST::Prototype> Parser::parseExtern() {
   consumeToken<KeywordExternToken>();
-  std::unique_ptr<AST::Prototype> Res = parsePrototype();
+  std::unique_ptr<AST::Prototype> Res = parsePrototype(true);
   consumeToken<SemicolonToken>();
   return Res;
 }

@@ -1,4 +1,4 @@
-extern putchar(x: i32) -> i32;
+extern putchar(i32) -> i32;
 
 def print_int(x: i32) -> void {
   n: i32 = x;
@@ -29,7 +29,7 @@ def print_fibonacci() -> void {
   b: i32 = 1;
   counter: i32 = 0;
 
-  while (counter < 10) {
+  while (counter < 50) {
     print_int(a);
     putchar(32);
 

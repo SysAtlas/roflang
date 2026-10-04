@@ -161,7 +161,6 @@ private:
   SourceLocation getLocInfo();
 
   i32 LastChar;
-  i32 PrevChar = ' ';
 
   std::ifstream ProgramStream;
   std::vector<std::string> ProgramLines;
@@ -187,7 +186,9 @@ private:
   }
 
 public:
+  // For error reporting
   const std::vector<std::string> &getProgramLines();
+
   // Get current token and advance
   const Token *getTok();
 

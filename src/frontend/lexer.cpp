@@ -51,8 +51,8 @@ Token Lexer::consumeTok() {
     if (IdentifierStr == "while") {
       return KeywordWhileToken{};
     }
-    if (const RLTypeInfo *Type = searchRLTypeInfoTable(IdentifierStr)) {
-      return RLTypeToken{Type->Type};
+    if (const RLTypeInfo *TypeInfo = searchRLTypeInfoTable(IdentifierStr)) {
+      return RLTypeToken{TypeInfo->Type};
     }
 
     return IdentifierToken{IdentifierStr};
@@ -132,6 +132,7 @@ void Lexer::lex() {
     SourceLocation Loc = getLocInfo();
     Tokens.push_back(consumeTok());
     Tokens.back().Loc = Loc;
+    DBGPRINT(Tokens.back().print());
   } while (!Tokens.back().is<EOFToken>());
   CurTok = Tokens.data();
 }

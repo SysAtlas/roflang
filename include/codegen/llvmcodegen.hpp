@@ -41,7 +41,7 @@ private:
 
   llvm::Function *codegen(const AST::Prototype &PNode);
   llvm::Function *codegen(const AST::Function &FNode);
-  llvm::Module *codegen();
+  void codegen();
 
   LLVMCodeGen(std::unique_ptr<AST::Module> AST, llvm::LLVMContext &Context);
 

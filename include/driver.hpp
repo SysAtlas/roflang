@@ -18,3 +18,13 @@ class LLVMDriver : public IDriver {
   void compile() override;
   LLVMDriver(std::string_view InputFilePath, std::string_view OutputFilePath);
 };
+
+class X86Driver : public IDriver {
+  private:
+  std::string InputFilePath;
+  std::string OutputFilePath;
+
+  public:
+  void compile() override;
+  X86Driver(std::string_view InputFilePath, std::string_view OutputFilePath);
+};
