@@ -17,8 +17,15 @@ static constexpr std::array BinOpInfoTable = {
 };
 
 static constexpr std::array RLTypeInfoTable = {
-  RLTypeInfo{RLType::Void, "void"},
-  RLTypeInfo{RLType::I64, "i64"},
+  RLTypeInfo{RLType::Void, "void", 0},
+  RLTypeInfo{RLType::I64, "i64", 64},
+  RLTypeInfo{RLType::I32, "i32", 32},
+  RLTypeInfo{RLType::I16, "i16", 16},
+  RLTypeInfo{RLType::I8, "i8", 8},
+  RLTypeInfo{RLType::U64, "u64", 64},
+  RLTypeInfo{RLType::U32, "u32", 32},
+  RLTypeInfo{RLType::U16, "u16", 16},
+  RLTypeInfo{RLType::U8, "u8", 8},
 };
 
 const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp) {
@@ -83,7 +90,7 @@ Token Lexer::consumeTok() {
   }
 
   // identifier: [a-zA-Z][a-zA-Z0-9]*
-  if (std::isalpha(LastChar)) {
+  if (std::isalpha(LastChar) || LastChar == '_') {
     std::string IdentifierStr;
     do {
       IdentifierStr += LastChar;
@@ -105,6 +112,9 @@ Token Lexer::consumeTok() {
     }
     if (IdentifierStr == "return") {
       return KeywordReturnToken{};
+    }
+    if (IdentifierStr == "while") {
+      return KeywordWhileToken{};
     }
     if (const RLTypeInfo *Type = searchRLTypeInfoTable(IdentifierStr)) {
       return RLTypeToken{Type->Type};
@@ -138,7 +148,7 @@ Token Lexer::consumeTok() {
   }
 
   std::optional<Token> SingleCharToken;
-  char ToMatch = LastChar;
+  i32 ToMatch = LastChar;
   nextChar();
   if (ToMatch == ',') {
     return CommaToken{};
@@ -148,8 +158,12 @@ Token Lexer::consumeTok() {
       return ArrowToken{};
     }
     return BinOpToken{BinOpType::Sub};
-  } else if (const BinOpInfo *T =
-               searchBinOpInfoTable(std::string(1, ToMatch))) {
+  } else if (const BinOpInfo* T = searchBinOpInfoTable(std::string{(char) ToMatch, (char) LastChar})) {
+    // Bin ops of size 2
+    nextChar();
+    return BinOpToken{T->Op};
+    // Bin ops of size 1
+  } else if (const BinOpInfo *T = searchBinOpInfoTable(std::string(1, ToMatch))) {
     return BinOpToken{T->Op};
   } else if (ToMatch == ';') {
     return SemicolonToken{};
@@ -166,6 +180,10 @@ Token Lexer::consumeTok() {
   } else if (ToMatch == ':') {
     return ColonToken{};
   } else if (ToMatch == '=') {
+    if (LastChar == '=') {
+      nextChar();
+      return BinOpToken{searchBinOpInfoTable("==")->Op};
+    }
     return EqualsToken{};
   }
 
@@ -193,11 +211,11 @@ const Token *Lexer::getTok() {
 }
 
 const Token* Lexer::peek() {
-  return CurTok + 1;
+  return CurTok;
 }
 
 Lexer::Lexer(const char* ModulePath)
-    : ProgramStream{std::ifstream{ModulePath}}, ModulePath(ModulePath) {
+    : ModulePath(ModulePath), ProgramStream{std::ifstream{ModulePath}} {
   if (ProgramStream.fail()) {
     std::cerr << "Failure opening file " << ModulePath << std::endl;
     std::exit(1);

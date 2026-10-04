@@ -1,0 +1,15 @@
+extern putchar(x: i32) -> i32;
+
+def print_alphabet() -> void {
+  counter: i32 = 65;
+  while (counter < 91) {
+    putchar(counter);
+    counter = counter + 1;
+  }
+}
+
+def main() -> void
+{
+  print_alphabet();
+  return;
+}

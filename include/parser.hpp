@@ -21,13 +21,17 @@ private:
   [[nodiscard]] std::vector<AST::Statement> parseStatementSequence();
   [[nodiscard]] std::unique_ptr<AST::ReturnStatement> parseReturnStmt();
   [[nodiscard]] std::unique_ptr<AST::IfStatement> parseIfStmt();
-  [[nodiscard]] std::unique_ptr<AST::LocalDefStatement>
+  [[nodiscard]] std::unique_ptr<AST::LocalVarDecl>
   parseLocalDefStatement();
   [[nodiscard]] AST::Expr parsePrimary();
   [[nodiscard]] AST::Expr parseIdExpr();
   [[nodiscard]] AST::Expr parseParenExpr();
   [[nodiscard]] AST::Expr parseNumberExpr();
   [[nodiscard]] std::unique_ptr<AST::Module> parseModule();
+  [[nodiscard]] AST::FunctionArgument parseFunctionArgument();
+  [[nodiscard]] std::unique_ptr<AST::AssignmentStatement> parseAssignmentStmt();
+  [[nodiscard]] std::unique_ptr<AST::WhileStatement> parseWhileStmt();
+
 
   // Logging
   void logError(std::string_view Str);

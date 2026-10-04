@@ -1,0 +1,50 @@
+extern putchar(x: i32) -> i32;
+
+def print_int(x: i32) -> void {
+  n: i32 = x;
+  divisor: i32 = 1;
+
+  if (n == 0) {
+    putchar(48);
+    return;
+  }
+
+  while (n / divisor >= 10) {
+    divisor = divisor * 10;
+  }
+
+  while (divisor > 0) {
+    digit: i32 = n / divisor;
+    putchar(digit + 48);
+
+    n = n - digit * divisor;
+    divisor = divisor / 10;
+  }
+
+  return;
+}
+
+def print_fibonacci() -> void {
+  a: i32 = 0;
+  b: i32 = 1;
+  counter: i32 = 0;
+
+  while (counter < 10) {
+    print_int(a);
+    putchar(32);
+
+    next: i32 = a + b;
+    a = b;
+    b = next;
+
+    counter = counter + 1;
+  }
+
+  return;
+}
+
+def main() -> void {
+  print_fibonacci();
+  putchar(10);
+  return;
+}

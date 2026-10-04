@@ -32,7 +32,7 @@ private:
   bool returnAnalysis(const AST::Function &F) {
     bool Valid = true;
     for (const AST::ReturnStatement *RS : getAll<AST::ReturnStatement>(F)) {
-      bool Current = RS->Value.has_value() != (F.Proto->ReturnType == RLType::Void);
+      bool Current = RS->Value.has_value() != (F.Proto->ReturnTypeInfo->Type == RLType::Void);
       if (!Current) {
         reportSemanticAnalysisError(std::format("Invalid return type in function {}", F.Proto->Name));
       }

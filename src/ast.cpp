@@ -14,9 +14,9 @@ ReturnStatement::ReturnStatement(std::optional<Expr> &&Value)
     : Value{std::move(Value)} {}
 
 Prototype::Prototype(const std::string &Name,
-                     std::vector<std::string> Args,
-                     RLType ReturnType)
-    : Name(Name), Args(std::move(Args)), ReturnType{ReturnType} {}
+                     std::vector<FunctionArgument>&& Args,
+                     const RLTypeInfo* ReturnTypeInfo)
+    : Name(Name), Args(std::move(Args)), ReturnTypeInfo{ReturnTypeInfo} {}
 
 void getSubtree(const NumberExpr &E, std::vector<ASTNodeView> &Acc) {
   Acc.emplace_back(&E);
@@ -49,8 +49,14 @@ void getSubtree(const IfStatement &S, std::vector<ASTNodeView> &Acc) {
   }
 }
 
-void getSubtree(const LocalDefStatement& S, std::vector<ASTNodeView> &Acc) {
+void getSubtree(const LocalVarDecl& S, std::vector<ASTNodeView> &Acc) {
 
+}
+
+void getSubtree(const AssignmentStatement &S, std::vector<ASTNodeView> &Acc) {
+}
+
+void getSubtree(const WhileStatement &S, std::vector<ASTNodeView> &Acc) {
 }
 
 void getSubtree(const ReturnStatement &S, std::vector<ASTNodeView> &Acc) {

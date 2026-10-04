@@ -1,0 +1,6 @@
+extern getchar() -> i32;
+
+def main() -> i64 {
+  local_var: i64 = getchar();
+  return local_var;
+}

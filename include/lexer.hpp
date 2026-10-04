@@ -11,8 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq };
-
-enum class RLType { I64, Void };
+enum class RLType { I64, I32, I16, I8, U64, U32, U16, U8, Void };
 
 struct BinOpInfo {
   const BinOpType Op;
@@ -23,6 +22,7 @@ struct BinOpInfo {
 struct RLTypeInfo {
   const RLType Type;
   const std::string Repr;
+  u32 SizeInBits;
 };
 
 struct SourceLocation {
@@ -56,6 +56,10 @@ struct KeywordElseToken {
 struct KeywordReturnToken {
   static constexpr std::string_view TokenName = "return";
 };
+struct KeywordWhileToken {
+  static constexpr std::string_view TokenName = "while";
+};
+
 // Types
 struct RLTypeToken {
   const RLTypeInfo *Info;
@@ -136,7 +140,9 @@ class Token {
                                  KeywordReturnToken,
                                  ColonToken,
                                  RLTypeToken,
-                                 EqualsToken>;
+                                 EqualsToken,
+                                 KeywordWhileToken>;
+
   TokenType Value;
 
 public:
@@ -173,7 +179,7 @@ class Lexer {
 private:
   std::vector<Token> Tokens;
   const Token *CurTok = nullptr;
-  const char* ModulePath;
+  const char *ModulePath;
 
   u32 Line = 1;
   u32 Col = 1;
@@ -197,10 +203,11 @@ private:
 
   void logError(std::string_view Str) {
     auto FullMessage = std::format("Lexer error: {}\nAt {}:{}\n{}\n{}",
-                                  Str,
-                                  ModulePath,
-                                  Line,
-                                  ProgramLines[Line - 1], std::string(Col - 1, ' ') + "^");
+                                   Str,
+                                   ModulePath,
+                                   Line,
+                                   ProgramLines[Line - 1],
+                                   std::string(Col - 2, ' ') + "^");
     std::cerr << FullMessage << '\n';
     exit(1);
   }
@@ -213,5 +220,5 @@ public:
   // Return next token, but don't advance
   const Token *peek();
 
-  Lexer(const char* ModulePath);
+  Lexer(const char *ModulePath);
 };

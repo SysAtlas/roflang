@@ -1,0 +1,8 @@
+def main(x: i64, y: i64) -> i64 {
+  local_var: i64 = 67;
+  if (local_var < 228) {
+    local_var = 42;
+    return local_var;
+  }
+  return local_var;
+}

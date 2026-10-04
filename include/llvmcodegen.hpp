@@ -24,7 +24,7 @@ private:
   llvm::Function* TheFunction;
   std::unique_ptr<llvm::Module> TheModule;
   std::unique_ptr<llvm::IRBuilder<>> Builder;
-  std::unordered_map<std::string, llvm::Value *> NamedValues;
+  std::unordered_map<std::string, llvm::AllocaInst *> NamedValues;
   std::unique_ptr<AST::Module> ModuleTree;
 
   llvm::Value *codegen(const AST::NumberExpr &NNode);
@@ -35,7 +35,9 @@ private:
   void codegen(const AST::Statement &SNode);
   void codegen(const AST::IfStatement &SNode);
   void codegen(const AST::ReturnStatement& SNode);
-  void codegen(const AST::LocalDefStatement& SNode);
+  void codegen(const AST::LocalVarDecl& SNode);
+  void codegen(const AST::AssignmentStatement& SNode);
+  void codegen(const AST::WhileStatement &SNode);
 
   llvm::Function *codegen(const AST::Prototype &PNode);
   llvm::Function *codegen(const AST::Function &FNode);

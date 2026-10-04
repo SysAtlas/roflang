@@ -15,7 +15,10 @@ struct BinaryExpr;
 struct CallExpr;
 struct IfStatement;
 struct ReturnStatement;
-struct LocalDefStatement;
+struct WhileStatement;
+struct LocalVarDecl;
+struct AssignmentStatement;
+struct FunctionArgument;
 struct Prototype;
 struct Function;
 struct Module;
@@ -28,7 +31,9 @@ using Expr = std::variant<std::unique_ptr<NumberExpr>,
 using Statement = std::variant<std::unique_ptr<Expr>,
                                std::unique_ptr<IfStatement>,
                                std::unique_ptr<ReturnStatement>,
-                               std::unique_ptr<LocalDefStatement>>;
+                               std::unique_ptr<LocalVarDecl>,
+                               std::unique_ptr<AssignmentStatement>,
+                               std::unique_ptr<WhileStatement>>;
 
 // Not used in AST itself, but used by other consumers.
 using ASTNodeView = std::variant<const NumberExpr *,
@@ -37,8 +42,11 @@ using ASTNodeView = std::variant<const NumberExpr *,
                                  const CallExpr *,
                                  const IfStatement *,
                                  const ReturnStatement *,
-                                 const LocalDefStatement *,
+                                 const LocalVarDecl *,
+                                 const AssignmentStatement *,
+                                 const WhileStatement *,
                                  const Prototype *,
+                                 const FunctionArgument *,
                                  const Function *,
                                  const Module *>;
 
@@ -88,13 +96,37 @@ struct ReturnStatement {
   explicit ReturnStatement(std::optional<Expr> &&Value);
 };
 
-struct LocalDefStatement {
+struct AssignmentStatement {
   std::string Name;
-  RLType Type;
   Expr Value;
 
-  LocalDefStatement(std::string_view Name, RLType Type, Expr &&Value)
-      : Name{Name}, Type{Type}, Value{std::move(Value)} {}
+  AssignmentStatement(std::string_view Name, Expr &&Value)
+      : Name{Name}, Value{std::move(Value)} {}
+};
+
+struct LocalVarDecl {
+  std::string Name;
+  const RLTypeInfo *TypeInfo;
+  Expr Value;
+
+  LocalVarDecl(std::string_view Name, const RLTypeInfo *TypeInfo, Expr &&Value)
+      : Name{Name}, TypeInfo{TypeInfo}, Value{std::move(Value)} {}
+};
+
+struct WhileStatement {
+  Expr Cond;
+  std::vector<Statement> Body;
+
+  WhileStatement(Expr &&Cond, std::vector<Statement> &&Body)
+      : Cond{std::move(Cond)}, Body{std::move(Body)} {}
+};
+
+struct FunctionArgument {
+  std::string Name;
+  const RLTypeInfo *TypeInfo;
+
+  FunctionArgument(const std::string &Name, const RLTypeInfo *TypeInfo)
+      : Name{Name}, TypeInfo{TypeInfo} {}
 };
 
 /// PrototypeAST - This struct represents the "prototype" for a function,
@@ -102,12 +134,12 @@ struct LocalDefStatement {
 /// of arguments the function takes).
 struct Prototype {
   std::string Name;
-  std::vector<std::string> Args;
-  RLType ReturnType;
+  std::vector<FunctionArgument> Args;
+  const RLTypeInfo *ReturnTypeInfo;
 
   Prototype(const std::string &Name,
-            std::vector<std::string> Args,
-            RLType ReturnType);
+            std::vector<FunctionArgument> &&Args,
+            const RLTypeInfo *ReturnTypeInfo);
 };
 
 /// Function - This struct represents a function definition itself.
@@ -139,6 +171,9 @@ void getSubtree(const Expr &E, std::vector<ASTNodeView> &Acc);
 
 void getSubtree(const IfStatement &S, std::vector<ASTNodeView> &Acc);
 void getSubtree(const ReturnStatement &S, std::vector<ASTNodeView> &Acc);
+void getSubtree(const LocalVarDecl &S, std::vector<ASTNodeView> &Acc);
+void getSubtree(const AssignmentStatement &S, std::vector<ASTNodeView> &Acc);
+void getSubtree(const WhileStatement &S, std::vector<ASTNodeView> &Acc);
 void getSubtree(const Statement &S, std::vector<ASTNodeView> &Acc);
 
 void getSubtree(const Prototype &P, std::vector<ASTNodeView> &Acc);
