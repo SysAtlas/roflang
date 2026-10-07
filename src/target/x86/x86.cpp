@@ -1,6 +1,6 @@
+#include <target/x86/instructions.hpp>
 #include <target/x86/x86.hpp>
 #include <unordered_map>
-#include <target/x86/instructions.hpp>
 
 namespace X86 {
 
@@ -61,9 +61,18 @@ std::string Function::toString() const {
   return Res;
 }
 Function::Function(std::string_view Name, LinkageType Linkage)
-    : Name{Name}, Linkage{Linkage} {
-  // Function starts with the basic block containing itself..
-  BBs.emplace_back(Name);
+    : Name{Name}, Linkage{Linkage} {}
+
+BasicBlock &Function::addBasicBlock(BasicBlock &&BB, BasicBlock *InsertAfter) {
+  if (InsertAfter == nullptr) {
+    BBs.push_front(std::move(BB));
+    return BBs.front();
+  }
+  return *BBs.insert(
+    ++std::ranges::find_if(
+      BBs,
+      [InsertAfter](const BasicBlock &Arg) { return &Arg == InsertAfter; }),
+    std::move(BB));
 }
 
 } // namespace X86

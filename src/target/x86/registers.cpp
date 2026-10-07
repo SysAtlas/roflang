@@ -2,40 +2,61 @@
 
 namespace X86 {
 
-RAX RAX_{};
-RBX RBX_{};
-RCX RCX_{};
-RDX RDX_{};
-R8 R8_{};
-R9 R9_{};
-R10 R10_{};
-R11 R11_{};
-R12 R12_{};
-R13 R13_{};
-R14 R14_{};
-R15 R15_{};
-RSI RSI_{};
-RDI RDI_{};
-RSP RSP_{};
-RBP RBP_{};
-
-const std::array<const Register *, 16> RF::Registers{&RAX_,
-                                                               &RBX_,
-                                                               &RCX_,
-                                                               &RDX_,
-                                                               &R8_,
-                                                               &R9_,
-                                                               &R10_,
-                                                               &R11_,
-                                                               &R12_,
-                                                               &R13_,
-                                                               &R14_,
-                                                               &R15_,
-                                                               &RSI_,
-                                                               &RDI_,
-                                                               &RSP_,
-                                                               &RBP_};
-const RAX &RF::getReturnRegister() {
-  return get<RAX>();
+Register RAX(RegisterSize Size) {
+  return Register{Size, RegisterType::RAX};
 }
+Register RBX(RegisterSize Size) {
+  return Register{Size, RegisterType::RBX};
+}
+Register RCX(RegisterSize Size) {
+  return Register{Size, RegisterType::RCX};
+}
+Register RDX(RegisterSize Size) {
+  return Register{Size, RegisterType::RDX};
+}
+Register R8(RegisterSize Size) {
+  return Register{Size, RegisterType::R8};
+}
+Register R9(RegisterSize Size) {
+  return Register{Size, RegisterType::R9};
+}
+Register R10(RegisterSize Size) {
+  return Register{Size, RegisterType::R10};
+}
+Register R11(RegisterSize Size) {
+  return Register{Size, RegisterType::R11};
+}
+Register R12(RegisterSize Size) {
+  return Register{Size, RegisterType::R12};
+}
+Register R13(RegisterSize Size) {
+  return Register{Size, RegisterType::R13};
+}
+Register R14(RegisterSize Size) {
+  return Register{Size, RegisterType::R14};
+}
+Register R15(RegisterSize Size) {
+  return Register{Size, RegisterType::R15};
+}
+Register RSI(RegisterSize Size) {
+  return Register{Size, RegisterType::RSI};
+}
+Register RDI(RegisterSize Size) {
+  return Register{Size, RegisterType::RDI};
+}
+Register RSP(RegisterSize Size) {
+  return Register{Size, RegisterType::RSP};
+}
+Register RBP(RegisterSize Size) {
+  return Register{Size, RegisterType::RBP};
+}
+
+Register ReturnRegister() {
+  return RAX();
+}
+
+Register Register::getLo8() const {
+  return Register{RegisterSize::R8, Type};
+}
+
 } // namespace X86

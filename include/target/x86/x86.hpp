@@ -6,25 +6,11 @@
 
 #include <target/x86/registers.hpp>
 #include <target/x86/instructions.hpp>
+#include <target/x86/basicblock.hpp>
 
 namespace X86 {
 
 class Builder;
-
-struct BasicBlock {
-  std::string toString() const;
-  std::string Name;
-  std::list<std::unique_ptr<InstructionBase>> Instructions;
-
-public:
-  BasicBlock(std::string_view Name);
-
-  template<typename T>
-  T &insertInstruction(std::unique_ptr<T> Instr) requires std::derived_from<T, InstructionBase> {
-    Instructions.push_back(std::move(Instr));
-    return static_cast<T&>(*Instructions.back());
-  }
-};
 
 enum class LinkageType { Extern, Internal };
 
@@ -35,10 +21,12 @@ struct Function {
 
   std::list<BasicBlock> BBs;
 
+  BasicBlock &addBasicBlock(BasicBlock &&BB, BasicBlock* InsertAfter);
 public:
   Function(std::string_view Name, LinkageType Linkage);
   Function(const Function &) = delete;
   Function(Function&&) = default;
+  usize size() { return BBs.size(); }
   friend Builder;
 };
 
@@ -49,6 +37,7 @@ struct Module {
 
   Function &addFunction(std::unique_ptr<Function> Fn);
 
+  public:
   std::string toString();
   Module() {}
   friend Builder;

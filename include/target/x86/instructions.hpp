@@ -1,36 +1,26 @@
 #pragma once
 
 #include <common.hpp>
-#include <concepts>
-#include <target/x86/registers.hpp>
 #include <target/x86/operands.hpp>
+#include <target/x86/registers.hpp>
+#include <vector>
 
 namespace X86 {
 
-template <typename T>
-concept RegOrImm =
-  std::derived_from<T, Register> || std::is_same_v<T, Immediate>;
-
-template <typename T>
-concept Reg = std::derived_from<T, Register>;
-
 // TODO: RegImmOrMem
 
-struct InstructionBase {
-  virtual std::string toString() const = 0;
-  virtual ~InstructionBase() = default;
+class Instruction {
+protected:
+  std::vector<OpInfo> Operands;
   std::string OpCode;
 
-  InstructionBase(const std::string &OpCode) : OpCode{OpCode} {}
-};
+  Instruction(const std::string &OpCode, const std::vector<OpInfo> &Operands)
+      : Operands{Operands}, OpCode{OpCode} {}
 
-template <u32 Size> struct Instruction : public InstructionBase {
-  std::array<OpInfo, Size> Operands;
-  virtual ~Instruction() = default;
-
-  std::string toString() const override {
+public:
+  std::string toString() const {
     std::string Res = OpCode;
-    for (const auto& OI : Operands) {
+    for (const auto &OI : Operands) {
       Res += ' ' + OI.Op.toString() + ',';
     }
     if (!Operands.empty()) {
@@ -38,54 +28,142 @@ template <u32 Size> struct Instruction : public InstructionBase {
     }
     return Res;
   }
-
-  Instruction(const std::string OpCode, std::array<OpInfo, Size> Operands)
-      : InstructionBase(OpCode), Operands{Operands} {}
 };
 
 // Supported instructions
 // TODO: Support mem or reg..
 
-struct MovInstruction : public Instruction<2> {
-  template <u32 Size, RegOrImm SrcType>
-  MovInstruction(const GPRegister<Size> &Dst, const SrcType &Src)
+template <typename T>
+concept RegImm = std::is_same_v<T, Register> || std::is_same_v<T, Immediate>;
+
+struct Mov : public Instruction {
+  template <RegImm SrcType>
+  Mov(const Register &Dst, const SrcType &Src)
       : Instruction("mov", {OpInfo{Dst, true}, OpInfo{Src, false}}) {}
 };
 
-struct PushInstruction : public Instruction<1> {
-  template <RegOrImm SrcType>
-  PushInstruction(const SrcType &Src)
-      : Instruction{"push", {{OpInfo{Src, false}}}} {}
+struct Push : public Instruction {
+  Push(const Register &Src) : Instruction{"push", {{OpInfo{Src, false}}}} {}
 };
 
-struct PopInstruction : public Instruction<1> {
-  template <u32 Size>
-  PopInstruction(const GPRegister<Size>& Dst) : Instruction{"pop", {OpInfo{Dst, true}}} {}
+struct Pop : public Instruction {
+  Pop(const Register &Dst) : Instruction{"pop", {OpInfo{Dst, true}}} {}
 };
 
-struct RetInstruction : public Instruction<0> {
-  RetInstruction() : Instruction{"ret", {}} {}
+struct Xchg : public Instruction {
+  Xchg(const Register &Op1, const Register &Op2)
+      : Instruction{"xchg",
+                    {OpInfo{Op1, true, true}, OpInfo{Op2, true, true}}} {}
 };
 
-struct AddInstruction : public Instruction<2> {
-  template <RegOrImm SrcType>
-  AddInstruction(const RAX &Dst, const SrcType &Src)
+// Arithmetic
+
+struct Add : public Instruction {
+  Add(const Register &Dst, const Register &Src)
       : Instruction{"add", {OpInfo{Dst, true}, OpInfo{Src, false}}} {}
 };
 
-struct SubInstruction : public Instruction<2> {
-  template <RegOrImm SrcType>
-  SubInstruction(const RAX &Dst, const SrcType &Src)
+struct Sub : public Instruction {
+  Sub(const Register &Dst, const Register &Src)
       : Instruction{"sub", {OpInfo{Dst, true}, OpInfo{Src, false}}} {}
 };
 
-struct IMulInstruction : public Instruction<3> {
-  template <u32 Size, RegOrImm Src1Type>
-  IMulInstruction(const GPRegister<Size> &Dst,
-                  const GPRegister<Size> &Src0,
-                  const Src1Type &Src1)
-      : Instruction{
-          "imul",
-          {OpInfo{Dst, true}, OpInfo{Src0, false}, OpInfo{Src1, false}}} {}
+struct IMul : public Instruction {
+  IMul(const Register &Dst, const Register &Src0)
+      : Instruction{"imul", {OpInfo{Dst, true}, OpInfo{Src0, false}}} {}
 };
+
+// Bit manipulation
+
+struct MovSX : public Instruction {
+  MovSX(const Register &Dst, const Register &Src)
+      : Instruction("movsx", {OpInfo{Dst, true}, OpInfo{Src, false}}) {}
+};
+
+// Cmp
+
+struct Cmp : public Instruction {
+  template <RegImm SrcType>
+  Cmp(const Register &Dst, const SrcType &Src)
+      : Instruction{"cmp", {OpInfo{Dst, true}, OpInfo{Src, false}}} {}
+};
+
+struct SetZ : public Instruction {
+  SetZ(const Register &Destination)
+      : Instruction{"setz", {OpInfo{Destination, false}}} {}
+};
+
+struct SetNE : public Instruction {
+  SetNE(const Register &Destination)
+      : Instruction{"setne", {OpInfo{Destination, false}}} {}
+};
+
+struct SetL : public Instruction {
+  SetL(const Register &Destination)
+      : Instruction{"setl", {OpInfo{Destination, false}}} {}
+};
+
+struct SetLE : public Instruction {
+  SetLE(const Register &Destination)
+      : Instruction{"setle", {OpInfo{Destination, false}}} {}
+};
+
+struct SetG : public Instruction {
+  SetG(const Register &Destination)
+      : Instruction{"setg", {OpInfo{Destination, false}}} {}
+};
+
+struct SetGE : public Instruction {
+  SetGE(const Register &Destination)
+      : Instruction{"setge", {OpInfo{Destination, false}}} {}
+};
+
+// Control flow
+
+struct Ret : public Instruction {
+  Ret() : Instruction{"ret", {}} {}
+};
+
+struct Jmp : public Instruction {
+  Jmp(const BasicBlock &Destination)
+      : Instruction{"jmp", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Jz : public Instruction {
+  Jz(const BasicBlock &Destination)
+      : Instruction{"jz", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Jne : public Instruction {
+  Jne(const BasicBlock &Destination)
+      : Instruction{"jne", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Call : public Instruction {
+  Call(const BasicBlock &Destination)
+      : Instruction{"call", {OpInfo{Label{Destination}, false}}} {}
+};
+
+// signed
+
+struct Jl : public Instruction {
+  Jl(const BasicBlock &Destination)
+      : Instruction{"jl", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Jle : public Instruction {
+  Jle(const BasicBlock &Destination)
+      : Instruction{"jle", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Jg : public Instruction {
+  Jg(const BasicBlock &Destination)
+      : Instruction{"jg", {OpInfo{Label{Destination}, false}}} {}
+};
+
+struct Jge : public Instruction {
+  Jge(const BasicBlock &Destination)
+      : Instruction{"jge", {OpInfo{Label{Destination}, false}}} {}
+};
+
 } // namespace X86
