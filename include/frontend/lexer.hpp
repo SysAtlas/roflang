@@ -15,11 +15,8 @@ struct EOFToken {
 };
 
 // Reserved keywords
-struct KeywordDefToken {
+struct KeywordFnToken {
   static constexpr std::string_view TokenName = "def";
-};
-struct KeywordExternToken {
-  static constexpr std::string_view TokenName = "extern";
 };
 struct KeywordIfToken {
   static constexpr std::string_view TokenName = "if";
@@ -62,7 +59,7 @@ struct BinOpToken {
   const BinOpInfo *Info;
   static constexpr std::string_view TokenName = "binary operator";
 
-  BinOpToken(BinOpType Op) : Info{searchBinOpInfoTable(Op)} {}
+  BinOpToken(BinOp Op) : Info{searchBinOpInfoTable(Op)} {}
 };
 
 // Punctuation
@@ -97,8 +94,7 @@ struct EqualsToken {
 // New token types should always be added to this variant.
 class Token {
   using TokenType = std::variant<EOFToken,
-                                 KeywordDefToken,
-                                 KeywordExternToken,
+                                 KeywordFnToken,
                                  IdentifierToken,
                                  NumberToken,
                                  BinOpToken,

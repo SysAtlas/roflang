@@ -29,11 +29,12 @@ template <class... Ts> struct overloaded : Ts... {
   std::exit(1);
 }
 
-extern bool PrintDebugMessages;
+extern bool print_debug_messages;
 
-inline void debugPrint_(std::string_view Msg) {
-  if (PrintDebugMessages)
-    std::cerr << Msg << '\n';
+inline void debugPrint_(std::string_view msg) {
+  if (print_debug_messages) {
+    std::cerr << msg << '\n';
+  }
 }
 
 #define DBGPRINT(x) debugPrint_(x)
@@ -44,28 +45,28 @@ inline void debugPrint_(std::string_view Msg) {
 
 #endif
 
-enum class BinOpType { Add, Sub, Mul, Div, Lt, Leq, Gt, Geq, Eq, Neq, Mod };
-enum class RLType { I64, I32, I16, I8, U64, U32, U16, U8, Void };
+enum class BinOp { ADD, SUB, MUL, DIV, LT, LEQ, GT, GEQ, EQ, NEQ, MOD };
+enum class RLType { I64, I32, I16, I8, U64, U32, U16, U8, VOID };
 
 struct BinOpInfo {
-  const BinOpType Op;
-  const u32 Precedence;
-  const std::string Repr;
+  const BinOp op;
+  const u32 precedence;
+  const std::string repr;
 };
 
 struct RLTypeInfo {
-  const RLType Type;
-  const std::string Repr;
-  u32 SizeInBits;
+  const RLType type;
+  const std::string repr;
+  u32 size_in_bits;
 };
 
 struct SourceLocation {
-  u32 Line;
-  u32 Col;
+  u32 line;
+  u32 col;
 };
 
-const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp);
-const BinOpInfo *searchBinOpInfoTable(const std::string &SV);
+const BinOpInfo *searchBinOpInfoTable(BinOp bin_op);
+const BinOpInfo *searchBinOpInfoTable(const std::string &sv);
 
-const RLTypeInfo *searchRLTypeInfoTable(RLType Type);
-const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV);
+const RLTypeInfo *searchRLTypeInfoTable(RLType type);
+const RLTypeInfo *searchRLTypeInfoTable(const std::string &sv);

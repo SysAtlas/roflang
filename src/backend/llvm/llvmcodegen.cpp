@@ -1,3 +1,5 @@
+#include <backend/llvm/llvmcodegen.hpp>
+
 #include <common.hpp>
 #include <frontend/lexer.hpp>
 #include <frontend/ast.hpp>
@@ -8,7 +10,6 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
-#include <codegen/llvmcodegen.hpp>
 #include <memory>
 #include <variant>
 
@@ -20,12 +21,12 @@ llvm::Value *LogErrorV(const char *Str) {
   return nullptr;
 }
 
-LLVMCodeGen::LLVMCodeGen(std::unique_ptr<AST::Module> ModuleTree,
-                         LLVMContext &Context)
-    : TheContext(Context),
+LLVMCodeGen::LLVMCodeGen(std::unique_ptr<AST::Module> module_tree,
+                         LLVMContext &context)
+    : TheContext(context),
       TheModule(std::make_unique<Module>("roflang", TheContext)),
       Builder(std::make_unique<IRBuilder<>>(TheContext)),
-      ModuleTree{std::move(ModuleTree)} {}
+      ModuleTree{std::move(module_tree)} {}
 
 std::unique_ptr<Module> LLVMCodeGen::generate(std::unique_ptr<AST::Module> AST,
                                               llvm::LLVMContext &Context) {
@@ -35,53 +36,53 @@ std::unique_ptr<Module> LLVMCodeGen::generate(std::unique_ptr<AST::Module> AST,
 }
 
 Value *LLVMCodeGen::codegen(const AST::NumberExpr &NNode) {
-  return ConstantInt::get(Type::getInt32Ty(TheContext), NNode.Val);
+  return ConstantInt::get(Type::getInt32Ty(TheContext), NNode.value);
 }
 
 Value *LLVMCodeGen::codegen(const AST::VariableExpr &VNode) {
   // Look this variable up in the function.
-  AllocaInst *V = NamedValues[VNode.Name];
+  AllocaInst *V = NamedValues[VNode.name];
   if (!V) {
     return LogErrorV("Unknown variable name");
   }
   return Builder->CreateLoad(
-    V->getAllocatedType(), V, std::format("{}_ld", VNode.Name));
+    V->getAllocatedType(), V, std::format("{}_ld", VNode.name));
 }
 
 Value *LLVMCodeGen::codegen(const AST::BinaryExpr &BNode) {
-  Value *L = codegen(BNode.LHS);
-  Value *R = codegen(BNode.RHS);
+  Value *L = codegen(BNode.lhs);
+  Value *R = codegen(BNode.rhs);
   if (!L || !R) {
     return nullptr;
   }
 
-  switch (BNode.Op) {
-  case BinOpType::Add:
+  switch (BNode.op) {
+  case BinOp::ADD:
     return Builder->CreateAdd(L, R, "add");
-  case BinOpType::Sub:
+  case BinOp::SUB:
     return Builder->CreateSub(L, R, "sub");
-  case BinOpType::Mul:
+  case BinOp::MUL:
     return Builder->CreateMul(L, R, "mul");
-  case BinOpType::Div:
+  case BinOp::DIV:
     return Builder->CreateSDiv(L, R, "div");
-  case BinOpType::Mod:
+  case BinOp::MOD:
     return Builder->CreateURem(L, R, "mod");
-  case BinOpType::Lt:
+  case BinOp::LT:
     L = Builder->CreateICmpSLT(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
-  case BinOpType::Leq:
+  case BinOp::LEQ:
     L = Builder->CreateICmpSLE(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
-  case BinOpType::Gt:
+  case BinOp::GT:
     L = Builder->CreateICmpSGT(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
-  case BinOpType::Geq:
+  case BinOp::GEQ:
     L = Builder->CreateICmpSGE(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
-  case BinOpType::Neq:
+  case BinOp::NEQ:
     L = Builder->CreateICmpNE(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
-  case BinOpType::Eq:
+  case BinOp::EQ:
     L = Builder->CreateICmpEQ(L, R, "cmp");
     return Builder->CreateTrunc(L, Type::getInt1Ty(TheContext), "booltmp");
   default:
@@ -91,11 +92,11 @@ Value *LLVMCodeGen::codegen(const AST::BinaryExpr &BNode) {
 
 Value *LLVMCodeGen::codegen(const AST::CallExpr &CNode) {
   // Look up the name in the global module table.
-  Function *CalleeF = TheModule->getFunction(CNode.Callee);
+  Function *CalleeF = TheModule->getFunction(CNode.callee_name);
 
   std::vector<Value *> ArgsV;
-  for (unsigned i = 0, e = CNode.Args.size(); i != e; ++i) {
-    ArgsV.push_back(codegen(CNode.Args[i]));
+  for (unsigned i = 0, e = CNode.args.size(); i != e; ++i) {
+    ArgsV.push_back(codegen(CNode.args[i]));
   }
 
   return Builder->CreateCall(
@@ -110,13 +111,13 @@ Value *LLVMCodeGen::codegen(const AST::Expr &ENode) {
 }
 
 void LLVMCodeGen::codegen(const AST::IfStatement &SNode) {
-  Value *Condition = codegen(SNode.Condition);
+  Value *Condition = codegen(SNode.condition);
   BasicBlock *IfBody = BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
   BasicBlock *AfterIf =
     BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
   Builder->CreateCondBr(Condition, IfBody, AfterIf);
   Builder->SetInsertPoint(IfBody);
-  for (const auto &S : SNode.Body) {
+  for (const auto &S : SNode.body) {
     codegen(S);
   }
   Builder->CreateBr(AfterIf);
@@ -124,23 +125,23 @@ void LLVMCodeGen::codegen(const AST::IfStatement &SNode) {
 }
 
 void LLVMCodeGen::codegen(const AST::ReturnStatement &SNode) {
-  if (SNode.Value) {
-    Value *RetVal = codegen(*SNode.Value);
+  if (SNode.value) {
+    Value *RetVal = codegen(*SNode.value);
     Builder->CreateStore(RetVal, RetSlot, false);
   }
   Builder->CreateBr(EndBB);
 }
 
-void LLVMCodeGen::codegen(const AST::LocalVarDecl &SNode) {
+void LLVMCodeGen::codegen(const AST::LocalVarDeclStmt &SNode) {
   AllocaInst *NewSlot = Builder->CreateAlloca(
-    Type::getIntNTy(TheContext, SNode.TypeInfo->SizeInBits), nullptr, std::format("{}_st", SNode.Name));
-  Builder->CreateStore(codegen(SNode.Value), NewSlot);
-  NamedValues[SNode.Name] = NewSlot;
+    Type::getIntNTy(TheContext, SNode.type_info->size_in_bits), nullptr, std::format("{}_st", SNode.name));
+  Builder->CreateStore(codegen(SNode.value), NewSlot);
+  NamedValues[SNode.name] = NewSlot;
 }
 
 void LLVMCodeGen::codegen(const AST::AssignmentStatement &SNode) {
-  Value *RHS = codegen(SNode.Value);
-  Builder->CreateStore(RHS, NamedValues[SNode.Name]);
+  Value *RHS = codegen(SNode.value);
+  Builder->CreateStore(RHS, NamedValues[SNode.name]);
 }
 
 void LLVMCodeGen::codegen(const AST::WhileStatement &SNode) {
@@ -152,10 +153,10 @@ void LLVMCodeGen::codegen(const AST::WhileStatement &SNode) {
     BasicBlock::Create(TheContext, "bb", TheFunction, EndBB);
   Builder->CreateBr(CondBlock);
   Builder->SetInsertPoint(CondBlock);
-  Value *Condition = codegen(SNode.Cond);
+  Value *Condition = codegen(SNode.cond);
   Builder->CreateCondBr(Condition, WhileBody, AfterWhile);
   Builder->SetInsertPoint(WhileBody);
-  for (const auto &S : SNode.Body) {
+  for (const auto &S : SNode.body) {
     codegen(S);
   }
   Builder->CreateBr(CondBlock);
@@ -166,25 +167,25 @@ void LLVMCodeGen::codegen(const AST::Statement &SNode) {
   std::visit(overloaded{[this](const auto &Arg) { codegen(*Arg); }}, SNode);
 }
 
-Function *LLVMCodeGen::codegen(const AST::Prototype &PNode) {
+Function *LLVMCodeGen::codegen(const AST::Signature &PNode) {
   std::vector<Type *> Params;
-  for (const auto& Arg : PNode.Args) {
-    Params.push_back(Type::getIntNTy(TheContext, Arg.TypeInfo->SizeInBits));
+  for (const auto& Arg : PNode.args) {
+    Params.push_back(Type::getIntNTy(TheContext, Arg.type_info->size_in_bits));
   }
 
   Type *RetType =
-    PNode.ReturnTypeInfo->Type == RLType::Void
+    PNode.return_type_info->type == RLType::VOID
       ? Type::getVoidTy(TheContext)
-      : Type::getIntNTy(TheContext, PNode.ReturnTypeInfo->SizeInBits);
+      : Type::getIntNTy(TheContext, PNode.return_type_info->size_in_bits);
   FunctionType *FT = FunctionType::get(RetType, Params, false);
 
   Function *F = Function::Create(
-    FT, Function::ExternalLinkage, PNode.Name, TheModule.get());
+    FT, Function::ExternalLinkage, PNode.name, TheModule.get());
 
   // Set names for all arguments.
   unsigned Idx = 0;
   for (llvm::Argument &Arg : F->args()) {
-    const auto& NameOpt = PNode.Args[Idx++].Name;
+    const auto& NameOpt = PNode.args[Idx++].name;
     Arg.setName(NameOpt ? *NameOpt : "arg");
   }
 
@@ -193,10 +194,10 @@ Function *LLVMCodeGen::codegen(const AST::Prototype &PNode) {
 
 Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
   // First, check for an existing function from a previous 'extern' declaration.
-  TheFunction = TheModule->getFunction(FNode.Proto->Name);
+  TheFunction = TheModule->getFunction(FNode.proto->name);
 
   if (!TheFunction) {
-    TheFunction = codegen(*FNode.Proto);
+    TheFunction = codegen(*FNode.proto);
   }
 
   if (!TheFunction) {
@@ -237,7 +238,7 @@ Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
     NamedValues[std::string(Arg.getName())] = ArgSlot;
   }
 
-  for (const auto &S : FNode.Body) {
+  for (const auto &S : FNode.body) {
     codegen(S);
   }
 
@@ -249,7 +250,7 @@ Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
 }
 
 void LLVMCodeGen::codegen() {
-  for (const AST::Module::TopLevelItem &TLI : ModuleTree->TopLevelItems) {
+  for (const AST::Module::TopLevelItem &TLI : ModuleTree->top_level_items) {
     std::visit(
       overloaded{
         [this](auto &arg) { return codegen(*arg); },

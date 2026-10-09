@@ -1,14 +1,24 @@
 BasedOnStyle: LLVM
 
-ColumnLimit: 80 
-IndentWidth: 2
-ContinuationIndentWidth: 2
+# Types
+ClassCase: PascalCase
+StructCase: PascalCase
+EnumCase: PascalCase
+UnionCase: PascalCase
+TypeAliasCase: PascalCase
+TypedefCase: PascalCase
 
-BreakBeforeBraces: Attach
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
+# Functions / methods
+FunctionCase: camelCase
 
-BinPackArguments: false
-BinPackParameters: false
+# Variables
+VariableCase: snake_case
 
-BreakBeforeBinaryOperators: None
+# Data members
+MemberCase: snake_case
+
+# Constants
+ConstantCase: UPPER_CASE
+
+# Macros
+MacroCase: UPPER_CASE

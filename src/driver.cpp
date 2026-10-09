@@ -1,8 +1,8 @@
 #include <frontend/sema.hpp>
 #include <driver.hpp>
 
-#include <codegen/llvmcodegen.hpp>
-#include <codegen/x86codegen.hpp>
+#include <backend/llvm/llvmcodegen.hpp>
+#include <backend/x86/isel.hpp>
 #include <llvm/IR/PassManager.h>
 #include <frontend/parser.hpp>
 
@@ -11,37 +11,39 @@
 
 using namespace llvm;
 
-LLVMDriver::LLVMDriver(std::string_view InputFilePath, std::string_view OutputFilePath) : InputFilePath(InputFilePath), OutputFilePath(OutputFilePath) {}
+LLVMDriver::LLVMDriver(std::string_view input_filepath, std::string_view output_filepath) : input_filepath(input_filepath), output_filepath(output_filepath) {}
 
 void LLVMDriver::compile() {
-  std::unique_ptr<AST::Module> AST = Parser::parse(InputFilePath.data());
-  Sema::analyze(*AST);
+  std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
+  Sema::analyze(*ast);
 
-  LLVMContext TheContext{};
+  LLVMContext the_context{};
   std::unique_ptr<llvm::Module> M =
-    LLVMCodeGen::generate(std::move(AST), TheContext);
+    LLVMCodeGen::generate(std::move(ast), the_context);
   
-  if (OutputFilePath == "-") {
+  if (output_filepath == "-") {
     M->print(llvm::errs(), nullptr);
   } else {
-    std::error_code EC;
-    llvm::raw_fd_stream Result{OutputFilePath, EC};
-    M->print(Result, nullptr);
+    std::error_code ec;
+    llvm::raw_fd_stream result{output_filepath, ec};
+    M->print(result, nullptr);
   }
 }
 
-X86Driver::X86Driver(std::string_view InputFilePath, std::string_view OutputFilePath) : InputFilePath(InputFilePath), OutputFilePath(OutputFilePath) {}
+X86Driver::X86Driver(std::string_view input_filepath, std::string_view output_filepath) : input_filepath(input_filepath), output_filepath(output_filepath) {}
 
 void X86Driver::compile() {
-  std::unique_ptr<AST::Module> AST = Parser::parse(InputFilePath.data());
-  Sema::analyze(*AST);
+  std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
+  Sema::analyze(*ast);
 
-  std::string Result = X86::CodeGen::generateAsm(std::move(AST));
+  auto sel_res = X86::ISel::select(std::move(ast));
+
+  std::string result = sel_res.first->toString();
   
-  if (OutputFilePath == "-") {
-    std::cout << Result;
+  if (output_filepath == "-") {
+    std::cout << result;
   } else {
-    std::ofstream Res{OutputFilePath};
-    Res << Result;
+    std::ofstream res{output_filepath};
+    res << result;
   }
 }

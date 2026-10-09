@@ -33,11 +33,8 @@ Token Lexer::consumeTok() {
     } while (std::isalnum(LastChar) || LastChar == '_');
 
     // TODO: Make centralized tables.. this is too much effort
-    if (IdentifierStr == "def") {
-      return KeywordDefToken{};
-    }
-    if (IdentifierStr == "extern") {
-      return KeywordExternToken{};
+    if (IdentifierStr == "fn") {
+      return KeywordFnToken{};
     }
     if (IdentifierStr == "if") {
       return KeywordIfToken{};
@@ -52,7 +49,7 @@ Token Lexer::consumeTok() {
       return KeywordWhileToken{};
     }
     if (const RLTypeInfo *TypeInfo = searchRLTypeInfoTable(IdentifierStr)) {
-      return RLTypeToken{TypeInfo->Type};
+      return RLTypeToken{TypeInfo->type};
     }
 
     return IdentifierToken{IdentifierStr};
@@ -92,14 +89,14 @@ Token Lexer::consumeTok() {
       nextChar();
       return ArrowToken{};
     }
-    return BinOpToken{BinOpType::Sub};
+    return BinOpToken{BinOp::SUB};
   } else if (const BinOpInfo* T = searchBinOpInfoTable(std::string{(char) ToMatch, (char) LastChar})) {
     // Bin ops of size 2
     nextChar();
-    return BinOpToken{T->Op};
+    return BinOpToken{T->op};
     // Bin ops of size 1
   } else if (const BinOpInfo *T = searchBinOpInfoTable(std::string(1, ToMatch))) {
-    return BinOpToken{T->Op};
+    return BinOpToken{T->op};
   } else if (ToMatch == ';') {
     return SemicolonToken{};
   } else if (ToMatch == '(') {
@@ -117,7 +114,7 @@ Token Lexer::consumeTok() {
   } else if (ToMatch == '=') {
     if (LastChar == '=') {
       nextChar();
-      return BinOpToken{searchBinOpInfoTable("==")->Op};
+      return BinOpToken{searchBinOpInfoTable("==")->op};
     }
     return EqualsToken{};
   }
@@ -168,8 +165,8 @@ Lexer::Lexer(const char* ModulePath)
 
 std::string_view Token::print() const {
   return std::visit<std::string_view>(
-    overloaded{[](const BinOpToken &Arg) -> std::string_view { return Arg.Info->Repr; },
-               [](const RLTypeToken &Arg) -> std::string_view { return Arg.Info->Repr; },
+    overloaded{[](const BinOpToken &Arg) -> std::string_view { return Arg.Info->repr; },
+               [](const RLTypeToken &Arg) -> std::string_view { return Arg.Info->repr; },
                [](const auto &Value) -> std::string_view {
                  return Value.TokenName;
                }},

@@ -1,21 +1,21 @@
 #include <common.hpp>
 
 static constexpr std::array BinOpInfoTable = {
-  BinOpInfo{BinOpType::Add, 20, "+"},
-  BinOpInfo{BinOpType::Sub, 20, "-"},
-  BinOpInfo{BinOpType::Mul, 40, "*"},
-  BinOpInfo{BinOpType::Div, 40, "/"},
-  BinOpInfo{BinOpType::Mod, 40, "%"},
-  BinOpInfo{BinOpType::Lt, 10, "<"},
-  BinOpInfo{BinOpType::Leq, 10, "<="},
-  BinOpInfo{BinOpType::Gt, 10, ">"},
-  BinOpInfo{BinOpType::Geq, 10, ">="},
-  BinOpInfo{BinOpType::Eq, 10, "=="},
-  BinOpInfo{BinOpType::Neq, 10, "!="},
+  BinOpInfo{BinOp::ADD, 20, "+"},
+  BinOpInfo{BinOp::SUB, 20, "-"},
+  BinOpInfo{BinOp::MUL, 40, "*"},
+  BinOpInfo{BinOp::DIV, 40, "/"},
+  BinOpInfo{BinOp::MOD, 40, "%"},
+  BinOpInfo{BinOp::LT, 10, "<"},
+  BinOpInfo{BinOp::LEQ, 10, "<="},
+  BinOpInfo{BinOp::GT, 10, ">"},
+  BinOpInfo{BinOp::GEQ, 10, ">="},
+  BinOpInfo{BinOp::EQ, 10, "=="},
+  BinOpInfo{BinOp::NEQ, 10, "!="},
 };
 
 static constexpr std::array RLTypeInfoTable = {
-  RLTypeInfo{RLType::Void, "void", 0},
+  RLTypeInfo{RLType::VOID, "void", 0},
   RLTypeInfo{RLType::I64, "i64", 64},
   RLTypeInfo{RLType::I32, "i32", 32},
   RLTypeInfo{RLType::I16, "i16", 16},
@@ -26,42 +26,42 @@ static constexpr std::array RLTypeInfoTable = {
   RLTypeInfo{RLType::U8, "u8", 8},
 };
 
-const BinOpInfo *searchBinOpInfoTable(BinOpType BinOp) {
-  if (auto Element = std::ranges::find_if(
+const BinOpInfo *searchBinOpInfoTable(BinOp bin_op) {
+  if (auto element = std::ranges::find_if(
         BinOpInfoTable,
-        [BinOp](const BinOpInfo &Entry) { return Entry.Op == BinOp; });
-      Element != BinOpInfoTable.end()) {
-    return Element;
+        [bin_op](const BinOpInfo &entry) { return entry.op == bin_op; });
+      element != BinOpInfoTable.end()) {
+    return element;
   }
   return nullptr;
 }
 
 const BinOpInfo *searchBinOpInfoTable(const std::string &SV) {
-  if (auto Element = std::ranges::find_if(
+  if (auto element = std::ranges::find_if(
         BinOpInfoTable,
-        [SV](const auto &Entry) { return Entry.Repr == SV; });
-      Element != BinOpInfoTable.end()) {
-    return Element;
+        [SV](const auto &entry) { return entry.repr == SV; });
+      element != BinOpInfoTable.end()) {
+    return element;
   }
   return nullptr;
 }
 
-const RLTypeInfo *searchRLTypeInfoTable(RLType Type) {
-  if (auto Element = std::ranges::find_if(
+const RLTypeInfo *searchRLTypeInfoTable(RLType type) {
+  if (auto element = std::ranges::find_if(
         RLTypeInfoTable,
-        [Type](const RLTypeInfo &Entry) { return Entry.Type == Type; });
-      Element != RLTypeInfoTable.end()) {
-    return Element;
+        [type](const RLTypeInfo &entry) { return entry.type == type; });
+      element != RLTypeInfoTable.end()) {
+    return element;
   }
   return nullptr;
 }
 
-const RLTypeInfo *searchRLTypeInfoTable(const std::string &SV) {
-  if (auto Element = std::ranges::find_if(
+const RLTypeInfo *searchRLTypeInfoTable(const std::string &sv) {
+  if (auto element = std::ranges::find_if(
         RLTypeInfoTable,
-        [SV](const RLTypeInfo &Entry) { return Entry.Repr == SV; });
-      Element != RLTypeInfoTable.end()) {
-    return Element;
+        [sv](const RLTypeInfo &entry) { return entry.repr == sv; });
+      element != RLTypeInfoTable.end()) {
+    return element;
   }
   return nullptr;
 }

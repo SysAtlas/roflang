@@ -11,32 +11,28 @@
 //===----------------------------------------------------------------------===//
 
 // Consume current token and get the next one
-const Token *Parser::getNextToken() {
-  return CurTok = Lexer_.getTok();
-}
+const Token *Parser::getNextToken() { return CurTok = Lexer_.getTok(); }
 
-const Token *Parser::peek() {
-  return Lexer_.peek();
-}
+const Token *Parser::peek() { return Lexer_.peek(); }
 
 /// LogError* - These are little helper functions for error handling.
-void Parser::logError(std::string_view Str, std::source_location ParserLoc = std::source_location::current()) {
-  SourceLocation Loc = CurTok->Loc;
-  auto FullMessage = std::format("Parser error at {}:{}: {}\nAt {}:{}\n{}\n{}",
-                                 ParserLoc.file_name(), ParserLoc.line(),
-                                 Str,
-                                 ModulePath,
-                                 Loc.Line,
-                                 Lexer_.getProgramLines()[Loc.Line - 1],
-                                 std::string(Loc.Col - 2, ' ') + "^");
-  std::cerr << FullMessage << '\n';
+void Parser::logError(
+    std::string_view str,
+    std::source_location parser_loc = std::source_location::current()) {
+  SourceLocation loc = CurTok->Loc;
+  auto full_message =
+      std::format("Parser error at {}:{}: {}\nAt {}:{}\n{}\n{}",
+                  parser_loc.file_name(), parser_loc.line(), str, ModulePath,
+                  loc.line, Lexer_.getProgramLines()[loc.line - 1],
+                  std::string(loc.col - 2, ' ') + "^");
+  std::cerr << full_message << '\n';
   exit(1);
 }
 
 /// numberexpr ::= number
 AST::Expr Parser::parseNumberExpr() {
   return std::make_unique<AST::NumberExpr>(
-    consumeToken<NumberToken>()->NumVal_);
+      consumeToken<NumberToken>()->NumVal_);
 }
 
 /// parenexpr ::= '(' expression ')'
@@ -106,7 +102,7 @@ AST::Expr Parser::parseBinOpRHS(u32 PrevPrecedence, AST::Expr &LHS) {
     }
 
     const BinOpInfo *Info = CurTok->get<BinOpToken>()->Info;
-    u32 Precedence = Info->Precedence;
+    u32 Precedence = Info->precedence;
 
     // If this is a binop that binds at least as tightly as the current binop,
     // consume it, otherwise we are done.
@@ -123,15 +119,15 @@ AST::Expr Parser::parseBinOpRHS(u32 PrevPrecedence, AST::Expr &LHS) {
     // If BinOp binds less tightly with RHS than the operator after RHS, let
     // the pending operator take RHS as its LHS.
     if (auto NextBinOp = CurTok->getIf<BinOpToken>()) {
-      u32 NextPrec = NextBinOp->Info->Precedence;
+      u32 NextPrec = NextBinOp->Info->precedence;
       if (Precedence < NextPrec) {
         RHS = parseBinOpRHS(Precedence + 1, RHS);
       }
     }
 
     // Merge LHS/RHS.
-    LHS = std::make_unique<AST::BinaryExpr>(
-      Info->Op, std::move(LHS), std::move(RHS));
+    LHS = std::make_unique<AST::BinaryExpr>(Info->op, std::move(LHS),
+                                            std::move(RHS));
   }
 }
 
@@ -154,17 +150,17 @@ AST::FunctionArgument Parser::parseFunctionArgument() {
   const RLTypeInfo *TypeInfo = consumeToken<RLTypeToken>()->Info;
   return AST::FunctionArgument{Name, TypeInfo};
 }
-/// prototype
+/// signature
 ///   ::= id '(' id* ') -> returntype'
-std::unique_ptr<AST::Prototype> Parser::parsePrototype(bool IsExtern) {
-  const IdentifierToken *NameToken = consumeToken<IdentifierToken>();
-  std::string FnName{NameToken->Name_};
+std::unique_ptr<AST::Signature> Parser::parseSignature() {
+  const IdentifierToken *name_token = consumeToken<IdentifierToken>();
+  std::string fn_name{name_token->Name_};
 
   consumeToken<LParToken>();
 
-  std::vector<AST::FunctionArgument> Args;
+  std::vector<AST::FunctionArgument> args;
   while (CurTok->is<IdentifierToken>() || CurTok->is<RLTypeToken>()) {
-    Args.push_back(parseFunctionArgument());
+    args.push_back(parseFunctionArgument());
     if (!CurTok->is<RParToken>()) {
       consumeToken<CommaToken>();
     }
@@ -173,10 +169,10 @@ std::unique_ptr<AST::Prototype> Parser::parsePrototype(bool IsExtern) {
   consumeToken<RParToken>();
   consumeToken<ArrowToken>();
 
-  const RLTypeInfo *ReturnTypeInfo = consumeToken<RLTypeToken>()->Info;
+  const RLTypeInfo *return_type_info = consumeToken<RLTypeToken>()->Info;
 
-  return std::make_unique<AST::Prototype>(
-    FnName, std::move(Args), ReturnTypeInfo, IsExtern);
+  // TODO: add static keyword
+  return std::make_unique<AST::Signature>(fn_name, std::move(args), return_type_info, false);
 }
 
 /// ifstatement
@@ -189,7 +185,7 @@ std::unique_ptr<AST::IfStatement> Parser::parseIfStmt() {
   consumeToken<LCurlyBraceToken>();
   std::vector<AST::Statement> Body = parseStatementSequence();
   auto Res =
-    std::make_unique<AST::IfStatement>(std::move(Cond), std::move(Body));
+      std::make_unique<AST::IfStatement>(std::move(Cond), std::move(Body));
   consumeToken<RCurlyBraceToken>();
   return Res;
 }
@@ -208,14 +204,14 @@ std::unique_ptr<AST::ReturnStatement> Parser::parseReturnStmt() {
 
 /// localdeclstmt
 /// id: type = expr;
-[[nodiscard]] std::unique_ptr<AST::LocalVarDecl>
+[[nodiscard]] std::unique_ptr<AST::LocalVarDeclStmt>
 Parser::parseLocalDefStatement() {
   std::string_view Name = consumeToken<IdentifierToken>()->Name_;
   consumeToken<ColonToken>();
   const RLTypeInfo *Type = consumeToken<RLTypeToken>()->Info;
   consumeToken<EqualsToken>();
   AST::Expr Value = parseExpression();
-  return std::make_unique<AST::LocalVarDecl>(Name, Type, std::move(Value));
+  return std::make_unique<AST::LocalVarDeclStmt>(Name, Type, std::move(Value));
 }
 
 /// assignment
@@ -243,62 +239,60 @@ Parser::parseAssignmentStmt() {
 /// statement ::= expr;
 AST::Statement Parser::parseStatement() {
   return std::visit<AST::Statement>(
-    overloaded{[this](const KeywordIfToken &) -> AST::Statement {
-                 return parseIfStmt();
-               },
-               [this](const KeywordWhileToken &) -> AST::Statement {
-                 return parseWhileStmt();
-               },
-               [this](const KeywordReturnToken &) -> AST::Statement {
-                 AST::Statement Res = parseReturnStmt();
-                 consumeToken<SemicolonToken>();
-                 return Res;
-               },
-               [this](const auto &) -> AST::Statement {
-                 if (peek()->is<ColonToken>()) {
-                   auto Res = parseLocalDefStatement();
+      overloaded{[this](const KeywordIfToken &) -> AST::Statement {
+                   return parseIfStmt();
+                 },
+                 [this](const KeywordWhileToken &) -> AST::Statement {
+                   return parseWhileStmt();
+                 },
+                 [this](const KeywordReturnToken &) -> AST::Statement {
+                   AST::Statement Res = parseReturnStmt();
                    consumeToken<SemicolonToken>();
                    return Res;
-                 } else if (peek()->is<EqualsToken>()) {
-                   auto Res = parseAssignmentStmt();
-                   consumeToken<SemicolonToken>();
-                   return Res;
-                 } else {
-                   AST::Statement Res =
-                     std::make_unique<AST::Expr>(parseExpression());
-                   consumeToken<SemicolonToken>();
+                 },
+                 [this](const auto &) -> AST::Statement {
+                   if (peek()->is<ColonToken>()) {
+                     auto Res = parseLocalDefStatement();
+                     consumeToken<SemicolonToken>();
+                     return Res;
+                   } else if (peek()->is<EqualsToken>()) {
+                     auto Res = parseAssignmentStmt();
+                     consumeToken<SemicolonToken>();
+                     return Res;
+                   } else {
+                     AST::Statement Res =
+                         std::make_unique<AST::Expr>(parseExpression());
+                     consumeToken<SemicolonToken>();
 
-                   return Res;
-                 }
-               }},
-    CurTok->getValue());
+                     return Res;
+                   }
+                 }},
+      CurTok->getValue());
 }
 
 std::vector<AST::Statement> Parser::parseStatementSequence() {
-  std::vector<AST::Statement> StatementSequence;
+  std::vector<AST::Statement> statement_sequence;
   while (!CurTok->is<RCurlyBraceToken>()) {
-    StatementSequence.emplace_back(parseStatement());
+    statement_sequence.emplace_back(parseStatement());
   }
-  return StatementSequence;
+  return statement_sequence;
 }
 
-/// definition ::= 'def' prototype { statementsequence }
-std::unique_ptr<AST::Function> Parser::parseDefinition() {
-  consumeToken<KeywordDefToken>();
-  auto Proto = parsePrototype(true);
+/// definition ::= 'fn' signature { statementsequence }
+std::unique_ptr<AST::Function> Parser::parseFunction() {
+  consumeToken<KeywordFnToken>();
+  auto signature = parseSignature();
+  // check if its only a declaration
+  if (CurTok->is<SemicolonToken>()) {
+    return std::make_unique<AST::Function>(std::move(signature),
+                                           std::vector<AST::Statement>{}, true);
+  }
   consumeToken<LCurlyBraceToken>();
   std::vector<AST::Statement> SS = parseStatementSequence();
   consumeToken<RCurlyBraceToken>();
 
-  return std::make_unique<AST::Function>(std::move(Proto), std::move(SS));
-}
-
-/// external ::= 'extern' prototype
-std::unique_ptr<AST::Prototype> Parser::parseExtern() {
-  consumeToken<KeywordExternToken>();
-  std::unique_ptr<AST::Prototype> Res = parsePrototype(true);
-  consumeToken<SemicolonToken>();
-  return Res;
+  return std::make_unique<AST::Function>(std::move(signature), std::move(SS),
+                                         false);
 }
 
 /// top ::= definition | external
@@ -307,20 +301,19 @@ std::unique_ptr<AST::Module> Parser::parseModule() {
 
   while (!CurTok->is<EOFToken>()) {
     std::optional<AST::Module::TopLevelItem> ParsedTLI =
-      std::visit<std::optional<AST::Module::TopLevelItem>>(
-        overloaded{
-          [this](const KeywordDefToken &) { return parseDefinition(); },
-          [this](const KeywordExternToken &) { return parseExtern(); },
-          [this](const SemicolonToken &) {
-            consumeToken<SemicolonToken>();
-            return std::nullopt;
-          },
-          [](const auto &) {
-            std::abort();
-            return std::nullopt;
-          },
-        },
-        CurTok->getValue());
+        std::visit<std::optional<AST::Module::TopLevelItem>>(
+            overloaded{
+                [this](const KeywordFnToken &) { return parseFunction(); },
+                [this](const SemicolonToken &) {
+                  consumeToken<SemicolonToken>();
+                  return std::nullopt;
+                },
+                [this](const auto &) {
+                  logError("Unexpected!");
+                  return std::nullopt;
+                },
+            },
+            CurTok->getValue());
     if (ParsedTLI) {
       TLIs.push_back(std::move(*ParsedTLI));
     }

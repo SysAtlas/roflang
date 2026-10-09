@@ -35,11 +35,11 @@ private:
   void codegen(const AST::Statement &SNode);
   void codegen(const AST::IfStatement &SNode);
   void codegen(const AST::ReturnStatement& SNode);
-  void codegen(const AST::LocalVarDecl& SNode);
+  void codegen(const AST::LocalVarDeclStmt& SNode);
   void codegen(const AST::AssignmentStatement& SNode);
   void codegen(const AST::WhileStatement &SNode);
 
-  llvm::Function *codegen(const AST::Prototype &PNode);
+  llvm::Function *codegen(const AST::Signature &PNode);
   llvm::Function *codegen(const AST::Function &FNode);
   void codegen();
 

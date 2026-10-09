@@ -5,18 +5,18 @@
 using namespace llvm;
 
 static cl::opt<std::string>
-  InputFilename(cl::Positional, cl::desc("input file"), cl::init("-"));
+  input_filename(cl::Positional, cl::desc("input file"), cl::init("-"));
 
 static cl::opt<bool>
-  EmitLLVMIR("emit-llvm", cl::desc("Emit LLVM IR instead of X86 assembly"), cl::init(false));
+  emit_llvm_ir("emit-llvm", cl::desc("Emit LLVM IR instead of X86 assembly"), cl::init(false));
 
 #ifndef NDEBUG
 static cl::opt<bool>
-  EnableDbgMessages("debug", cl::desc("Enable output of information useful for debugging"), cl::init(false));
-bool PrintDebugMessages = false;
+  enable_dbg_messages("debug", cl::desc("Enable output of information useful for debugging"), cl::init(false));
+bool print_debug_messages = false;
 #endif
 
-static cl::opt<std::string> OutputFilename("o",
+static cl::opt<std::string> output_filename("o",
                                            cl::desc("Output filename"),
                                            cl::value_desc("filename"),
                                            cl::init("-"));
@@ -25,14 +25,14 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv);
 
   #ifndef NDEBUG
-  PrintDebugMessages = EnableDbgMessages;
+  print_debug_messages = enable_dbg_messages;
   #endif
 
-  std::unique_ptr<IDriver> Driver = nullptr;
-  if (EmitLLVMIR) {
-    Driver = std::make_unique<LLVMDriver>(InputFilename, OutputFilename);
+  std::unique_ptr<IDriver> driver = nullptr;
+  if (emit_llvm_ir) {
+    driver = std::make_unique<LLVMDriver>(input_filename, output_filename);
   } else {
-    Driver = std::make_unique<X86Driver>(InputFilename, OutputFilename);
+    driver = std::make_unique<X86Driver>(input_filename, output_filename);
   }
-  Driver->compile();
+  driver->compile();
 }

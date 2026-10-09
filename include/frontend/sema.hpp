@@ -6,48 +6,48 @@
 
 class Sema {
 private:
-  const AST::Module &M;
+  const AST::Module &module;
 
-  Sema(const AST::Module &M) : M{M} {}
+  Sema(const AST::Module &module) : module{module} {}
 
   template <typename T, typename S>
-  std::vector<const T *> getAll(const S &ASTElement) {
-    std::vector<AST::ASTNodeView> CollectAll{};
-    AST::getSubtree(ASTElement, CollectAll);
+  std::vector<const T *> getAll(const S &ast_element) {
+    std::vector<AST::ASTNodeView> collect_all{};
+    AST::getSubtree(ast_element, collect_all);
 
-    std::vector<const T *> Result;
-    for (const auto& C : CollectAll) {
-      if (std::holds_alternative<const T*>(C)) {
-        Result.push_back(std::get<const T*>(C));
+    std::vector<const T *> result;
+    for (const auto& c : collect_all) {
+      if (std::holds_alternative<const T*>(c)) {
+        result.push_back(std::get<const T*>(c));
       }
     }
-    return Result;
+    return result;
   }
 
-  void reportSemanticAnalysisError(std::string_view Msg) {
-    std::cerr << Msg << '\n';
+  void reportSemanticAnalysisError(std::string_view msg) {
+    std::cerr << msg << '\n';
     abort();
   }
   
   bool returnAnalysis(const AST::Function &F) {
-    bool Valid = true;
-    for (const AST::ReturnStatement *RS : getAll<AST::ReturnStatement>(F)) {
-      bool Current = RS->Value.has_value() != (F.Proto->ReturnTypeInfo->Type == RLType::Void);
-      if (!Current) {
-        reportSemanticAnalysisError(std::format("Invalid return type in function {}", F.Proto->Name));
+    bool valid = true;
+    for (const AST::ReturnStatement *return_stmt : getAll<AST::ReturnStatement>(F)) {
+      bool current = return_stmt->value.has_value() != (F.proto->return_type_info->type == RLType::VOID);
+      if (!current) {
+        reportSemanticAnalysisError(std::format("Invalid return type in function {}", F.proto->name));
       }
-      Valid &= Current;
+      valid &= current;
     }
-    return Valid;
+    return valid;
   }
   // --------
 
 public:
   static bool analyze(const AST::Module &M) {
-    Sema S{M};
-    for (const auto& TLI : M.TopLevelItems) {
-      if (const auto* F = std::get_if<std::unique_ptr<AST::Function>>(&TLI)) {
-        S.returnAnalysis(**F);
+    Sema sema{M};
+    for (const auto& tli : M.top_level_items) {
+      if (const auto* f = std::get_if<std::unique_ptr<AST::Function>>(&tli)) {
+        sema.returnAnalysis(**f);
       }
     }
     return false;

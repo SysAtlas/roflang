@@ -1,6 +1,6 @@
-extern putchar(i32) -> i32;
+fn putchar(i32) -> i32;
 
-def print_int(x: i32) -> void {
+fn print_int(x: i32) -> void {
   n: i32 = x;
   divisor: i32 = 1;
 
@@ -24,7 +24,7 @@ def print_int(x: i32) -> void {
   return;
 }
 
-def print_fibonacci() -> void {
+fn print_fibonacci() -> void {
   a: i32 = 0;
   b: i32 = 1;
   counter: i32 = 0;
@@ -43,7 +43,7 @@ def print_fibonacci() -> void {
   return;
 }
 
-def main() -> void {
+fn main() -> void {
   print_fibonacci();
   putchar(10);
   return;

@@ -1,4 +1,4 @@
-def main() -> i32 {
+fn main() -> i32 {
   sum: i32 = 0;
   idx: i32 = 0;
   while (idx < 10) {
