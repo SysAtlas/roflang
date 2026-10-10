@@ -18,6 +18,15 @@ class Module {
   std::string emitHeader();
 
   std::vector<std::unique_ptr<Function>> functions;
+  std::vector<Function*> getFunctionDefs() {
+    std::vector<Function*> res;
+    for (auto& f : functions) {
+      if (!f->is_decl) {
+        res.push_back(f.get());
+      }
+    }
+    return res;
+  }
 
   Function &addFunction(std::unique_ptr<Function> function);
 
@@ -26,11 +35,5 @@ class Module {
   Module() = default;
   friend Builder;
 };
-
-struct ISelInfo {
-  u32 virtual_register_count;
-  std::unordered_map<u32, std::string> id_to_var_name;
-};
-
 
 } // namespace X86

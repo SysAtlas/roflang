@@ -1,8 +1,10 @@
+#include "backend/x86/livevariables.hpp"
 #include <frontend/sema.hpp>
 #include <driver.hpp>
 
 #include <backend/llvm/llvmcodegen.hpp>
 #include <backend/x86/isel.hpp>
+#include <backend/x86/lsra.hpp>
 #include <backend/x86/module.hpp>
 
 #include <llvm/IR/PassManager.h>
@@ -38,9 +40,17 @@ void X86Driver::compile() {
   std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
   Sema::analyze(*ast);
 
-  auto sel_res = X86::ISel::select(std::move(ast));
+  std::unique_ptr<X86::Module> mod = X86::ISel::runPass(std::move(ast));
+  if (print_after_isel) {
+    std::cerr << "AFTER ISEL\n";
+    std::cerr << "---------------------------\n";
+    std::cerr << mod->toString();
+    std::cerr << "---------------------------\n";
+  }
+  X86::LiveVariableAnalysis::runPass(mod.get());
+  X86::LSRA::runPass(mod.get());
 
-  std::string result = sel_res.first->toString();
+  std::string result = mod->toString();
   
   if (output_filepath == "-") {
     std::cout << result;

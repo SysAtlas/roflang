@@ -16,14 +16,14 @@ add_link_options(-fsanitize=address)
 find_package(LLVM REQUIRED CONFIG)
 
 file(GLOB_RECURSE sources src/*.cpp)
-list(FILTER sources EXCLUDE REGEX ".*/roflang\\.cpp$")
+list(FILTER sources EXCLUDE REGEX ".*/roflc\\.cpp$")
 
 add_library(roflang ${sources})
 target_include_directories(roflang PUBLIC include)
 target_compile_definitions(roflang PUBLIC ${LLVM_DEFINITIONS})
 target_link_libraries(roflang PUBLIC LLVM)
 
-add_executable(roflc src/roflang.cpp)
+add_executable(roflc src/roflc.cpp)
 target_link_libraries(roflc PRIVATE roflang)
 
 include(CTest)

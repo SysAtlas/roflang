@@ -62,7 +62,7 @@ public:
   std::vector<Register> getReadRegs();
   std::vector<Register> getWriteRegs();
 
-  std::vector<Register> getClobberSet() const;
+  std::list<Register> getClobberSet() const;
 };
 
 // Supported instructions
@@ -214,6 +214,20 @@ struct Jg : public Instruction {
 
 struct Jge : public Instruction {
   Jge(BasicBlock &dst);
+};
+
+// Pseudo-instructions
+
+struct Spill : public Instruction {
+};
+
+struct Fill : public Instruction {
+};
+
+struct Use : public Instruction {
+};
+
+struct Def : public Instruction {
 };
 
 } // namespace X86

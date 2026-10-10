@@ -10,6 +10,11 @@ static cl::opt<std::string>
 static cl::opt<bool>
   emit_llvm_ir("emit-llvm", cl::desc("Emit LLVM IR instead of X86 assembly"), cl::init(false));
 
+static cl::opt<bool>
+  after_isel("after-isel", cl::desc("Print assembly after instruction selection pass"), cl::init(false));
+
+bool print_after_isel = false;
+
 #ifndef NDEBUG
 static cl::opt<bool>
   enable_dbg_messages("debug", cl::desc("Enable output of information useful for debugging"), cl::init(false));
@@ -27,6 +32,7 @@ int main(int argc, char **argv) {
   #ifndef NDEBUG
   print_debug_messages = enable_dbg_messages;
   #endif
+  print_after_isel = after_isel;
 
   std::unique_ptr<IDriver> driver = nullptr;
   if (emit_llvm_ir) {

@@ -6,7 +6,7 @@ namespace X86 {
 
 struct OpcodeInfo {
   std::string name;
-  std::vector<Register> clobber_set;
+  std::list<Register> clobber_set;
 };
 
 static const std::unordered_map<Opcode, OpcodeInfo> OPCODE_TABLE = {{
@@ -40,7 +40,7 @@ static const std::unordered_map<Opcode, OpcodeInfo> OPCODE_TABLE = {{
     {Opcode::JNE, {"jne", {}}},
 }};
 
-std::vector<Register> Instruction::getClobberSet() const {
+std::list<Register> Instruction::getClobberSet() const {
   return OPCODE_TABLE.at(opcode).clobber_set;
 }
 

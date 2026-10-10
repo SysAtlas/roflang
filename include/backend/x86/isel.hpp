@@ -31,7 +31,7 @@ private:
   Register select(const AST::LocalVarDeclStmt &stmt);
   Register select(const AST::AssignmentStatement &assignment_stmt);
   void select(const AST::WhileStatement &while_stmt);
-  Function& select(const AST::Signature& signature);
+  Function& select(const AST::Signature& signature, bool is_decl);
   void select(const AST::Function &f_node);
   void select();
 
@@ -43,11 +43,8 @@ private:
 
   ISel(std::unique_ptr<AST::Module> module_tree);
   BasicBlock *end_bb = nullptr;
-
-  std::vector<std::unique_ptr<ISelInfo>> isel_infos;
 public:
-  using Result = std::pair<std::unique_ptr<Module>, std::vector<std::unique_ptr<ISelInfo>>>;
-  static Result select(std::unique_ptr<AST::Module> ast);
+  static std::unique_ptr<Module> runPass(std::unique_ptr<AST::Module> ast);
 };
 
 } // namespace X86

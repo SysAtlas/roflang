@@ -1,5 +1,6 @@
 #include <backend/x86/registers.hpp>
 #include <cassert>
+#include <vector>
 
 namespace X86 {
 
@@ -20,6 +21,11 @@ Register RDI(u32 size) { return Register{RegisterType::RDI, size}; }
 Register RSP(u32 size) { return Register{RegisterType::RSP, size}; }
 Register RBP(u32 size) { return Register{RegisterType::RBP, size}; }
 
+const std::array<Register, 16>& getAllRegisters() {
+  static const std::array<Register, 16> all_regs= {RAX(), RBX(), RCX(), RDX(), R8(),  R9(),  R10(), R11(), R12(), R13(), R14(), R15(), RSI(), RDI(), RSP(), RBP()};
+  return all_regs;
+}
+
 Register returnRegister() { return RAX(); }
 
 bool Register::isVirtual() {
@@ -27,7 +33,9 @@ bool Register::isVirtual() {
   return vid >= 0 && type == RegisterType::NONE;
 }
 
-Register Register::getLo8() const { return Register{type, 8, vid}; }
+Register Register::getSubregister(u8 size) const {
+  return Register{type, size, vid};
+}
 
 Register argumentRegister(u8 n) {
   switch (n) {

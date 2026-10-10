@@ -5,14 +5,8 @@ namespace X86 {
 
 std::string Function::toString() const {
   std::string res;
-  if (rpo.empty()) {
-    for (const BasicBlock &bb : bbs) {
-      res += bb.toString() + '\n';
-    }
-  } else {
-    for (const BasicBlock* bb : rpo) {
-      res += bb->toString() + '\n';
-    }
+  for (const BasicBlock &bb : bbs) {
+    res += bb.toString() + '\n';
   }
   return res;
 }
@@ -31,8 +25,8 @@ std::string Function::dbgString() const {
   return res;
 }
 
-Function::Function(std::string_view name, Linkage linkage)
-    : name{name}, linkage{linkage}, entry_block{nullptr} {}
+Function::Function(std::string_view name, Linkage linkage, bool is_decl)
+    : name{name}, linkage{linkage}, is_decl{is_decl}, entry_block{nullptr} {}
 
 BasicBlock &Function::addBasicBlock(BasicBlock &&bb, BasicBlock *insert_after) {
   if (insert_after == nullptr) {

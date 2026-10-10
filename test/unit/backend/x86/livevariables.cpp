@@ -35,7 +35,7 @@ std::tuple<Builder, std::unique_ptr<Module>, Function *, BasicBlock *>
 getBuilder() {
   auto mod = std::make_unique<Module>();
   Builder builder(mod.get());
-  Function &function = builder.addFunction(Function("test", Linkage::EXTERN));
+  Function &function = builder.addFunction(Function("test", Linkage::EXTERN, false));
   builder.setBBInsertionPoint(function);
   BasicBlock &bb = builder.addBasicBlock();
   function.entry_block = &bb;
@@ -50,6 +50,7 @@ TEST(CFGComputation, BasicTest) {
   auto &bb_2 = builder.addBasicBlock();
   auto &bb_3 = builder.addBasicBlock();
 
+
   builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
   builder.addInstruction(Jmp{bb_2});
   builder.setInsertionPoint(bb_2);
@@ -61,7 +62,8 @@ TEST(CFGComputation, BasicTest) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
-  LiveVariables::computeCFG(*builder.cur_function);
+  LiveVariableAnalysis lva;
+  lva.computeCFG(*builder.cur_function);
 
   ASSERT_EQ(start_bb->succs, std::set<BasicBlock *>{&bb_2});
   ASSERT_EQ(bb_2.succs, std::set<BasicBlock *>{&bb_3});
@@ -82,11 +84,11 @@ TEST(LiveAnalysis, BasicTest) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
-  LiveVariables::runPipeline(builder.mod);
+  LiveVariableAnalysis::runPass(builder.mod);
 
-  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), "[0;16]");
-  ASSERT_EQ(builder.cur_function->live_intervals.at(3).toString(), "[0;4]");
-  ASSERT_EQ(builder.cur_function->live_intervals.at(4).toString(), "[8;8]");
+  ASSERT_EQ(builder.cur_function->live_int_map.at(0).toString(), "[0;16]");
+  ASSERT_EQ(builder.cur_function->live_int_map.at(3).toString(), "[0;4]");
+  ASSERT_EQ(builder.cur_function->live_int_map.at(4).toString(), "[8;8]");
 }
 
 TEST(LiveAnalysis, ExtendsThroughBlocks) {
@@ -109,12 +111,12 @@ TEST(LiveAnalysis, ExtendsThroughBlocks) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Ret{});
 
-  LiveVariables::runPipeline(builder.mod);
+  LiveVariableAnalysis::runPass(builder.mod);
 
   std::cerr << builder.cur_function->dbgString();
 
-  LiveInterval expected{live.number, dead.number};
-  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), expected.toString());
+  LiveInterval expected{live.number, dead.number, 0};
+  ASSERT_EQ(builder.cur_function->live_int_map.at(0).toString(), expected.toString());
 }
 
 // Value is clobbered along one of the paths. It should still be live after the
@@ -145,12 +147,12 @@ TEST(LiveAnalysis, DiamondTest) {
   auto& dead = builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
-  LiveVariables::runPipeline(mod.get());
+  LiveVariableAnalysis::runPass(mod.get());
 
   std::cerr << builder.cur_function->dbgString();
 
-  LiveInterval expected{live.number, dead.number};
-  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), expected.toString());
+  LiveInterval expected{live.number, dead.number, 0};
+  ASSERT_EQ(builder.cur_function->live_int_map.at(0).toString(), expected.toString());
 }
 
 // A live interval of a variable that's in a loop should extend to the end of the loop 
@@ -184,12 +186,12 @@ TEST(LiveAnalysis, LoopTest) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Ret{});
 
-  LiveVariables::runPipeline(mod.get());
+  LiveVariableAnalysis::runPass(mod.get());
 
   std::cerr << builder.cur_function->dbgString();
 
-  LiveInterval expected{live.number, dead.number};
-  ASSERT_EQ(builder.cur_function->live_intervals.at(counter.vid).toString(), expected.toString());
+  LiveInterval expected{live.number, dead.number, 0};
+  ASSERT_EQ(builder.cur_function->live_int_map.at(counter.vid).toString(), expected.toString());
 }
 
 } // namespace X86

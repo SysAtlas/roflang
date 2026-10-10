@@ -2,9 +2,9 @@
 #include <backend/x86/function.hpp>
 #include <backend/x86/instructions.hpp>
 #include <backend/x86/livevariables.hpp>
+#include <backend/x86/module.hpp>
 #include <backend/x86/operands.hpp>
 #include <backend/x86/registers.hpp>
-#include <backend/x86/module.hpp>
 #include <cassert>
 
 namespace X86 {
@@ -26,7 +26,7 @@ namespace X86 {
 // 3. v3 <- v1 + v2
 // 4. v4 <- v3 + 2
 // 5. v3 <- v3 + 1
-std::set<u32> LiveVariables::compute_live_ins(BasicBlock *bb) {
+std::set<u32> LiveVariableAnalysis::compute_live_ins(BasicBlock *bb) {
   std::set<u32> live_ins;
   for (u32 used_before_def : bb->ue_var) {
     live_ins.insert(used_before_def);
@@ -40,9 +40,9 @@ std::set<u32> LiveVariables::compute_live_ins(BasicBlock *bb) {
 }
 
 // This is the info regalloc needs.
-void LiveVariables::compute_live_intervals(Function &f) {
-  f.live_intervals.clear();
-  std::unordered_map<u32, LiveInterval> &live_intervals = f.live_intervals;
+void LiveVariableAnalysis::computeLiveIntervals(Function &f) {
+  f.live_int_map.clear();
+  std::unordered_map<u32, LiveInterval>& live_int_map = f.live_int_map;
 
   for (BasicBlock *bb : f.rpo) {
     // compute set of live ins
@@ -51,10 +51,10 @@ void LiveVariables::compute_live_intervals(Function &f) {
     if (bb->instructions.empty()) {
       continue;
     }
-    u32 first_instr_number = bb->instructions.front().number;
-    u32 last_instr_number = bb->instructions.back().number;
-    for (Instruction &instr : bb->instructions) {
-      for (OpInfo &op : instr.op_infos) {
+    u32 first_instr_number = bb->instructions.front()->number;
+    u32 last_instr_number = bb->instructions.back()->number;
+    for (auto &instr : bb->instructions) {
+      for (OpInfo &op : instr->op_infos) {
         if (!op.is<Register>()) {
           continue;
         }
@@ -65,44 +65,59 @@ void LiveVariables::compute_live_intervals(Function &f) {
           continue;
         }
 
+        assert(access.vid != -1);
+
         // If we have no entry for this variable yet, create one
-        if (!live_intervals.contains(access.vid)) {
-          live_intervals[access.vid] = LiveInterval{};
+        if (!live_int_map.contains(access.vid)) {
+          live_int_map.insert({access.vid, LiveInterval{static_cast<u32>(access.vid)}});
         }
 
         // If interval is in live-ins, it must live through whole block
         bool is_live_in = live_ins.contains(access.vid);
-        u32 start = is_live_in ? first_instr_number : instr.number;
+        u32 start = is_live_in ? first_instr_number : instr->number;
         u32 end = bb->live_out.contains(access.vid) ? last_instr_number
-                                                    : instr.number;
-        LiveInterval &old_li = live_intervals.at(access.vid);
-        LiveInterval new_li{std::min(old_li.start, start),
-                            std::max(old_li.end, end)};
-        live_intervals[access.vid] = new_li;
+                                                    : instr->number;
+        LiveInterval& li = live_int_map.at(access.vid);
+        li.start = std::min(li.start, start);
+        li.end = std::max(li.end, end);
+        li.variable_id = access.vid;
       }
     }
     for (u32 live_out_id : bb->live_out) {
-      if (!live_intervals.contains(live_out_id)) {
-        live_intervals[live_out_id] = LiveInterval{};
+      if (!live_int_map.contains(live_out_id)) {
+        live_int_map.insert({live_out_id, LiveInterval{live_out_id}});
       }
-      LiveInterval &old_li = live_intervals.at(live_out_id);
-      LiveInterval new_li{old_li.start,
-                          std::max(old_li.end, last_instr_number)};
-      live_intervals[live_out_id] = new_li;
+      LiveInterval& li = live_int_map.at(live_out_id);
+      li.start = li.start;
+      li.end = std::max(li.end, last_instr_number);
+      li.variable_id = live_out_id;
     }
   }
 }
 
-void LiveVariables::reenumerate(Function &f) {
+void LiveVariableAnalysis::reenumerate(Function &f) {
   u32 index = 0;
   for (BasicBlock *bb : f.rpo) {
-    for (Instruction &instr : bb->instructions) {
-      instr.number = (index++) * ENUMERATION_GAP;
+    for (auto &instr : bb->instructions) {
+      instr->number = (index++) * ENUMERATION_GAP;
+      auto clobber_set = instr->getClobberSet();
+      for (auto& op : instr->op_infos) {
+        if (op.is<Register>()) {
+          Register reg = op.get<Register>();
+          if (!reg.isVirtual()) {
+            clobber_set.push_back(reg);
+          }
+        }
+      }
+      if (!clobber_set.empty()) {
+        clobber_sets.emplace_back(instr->number, clobber_set);
+      }
     }
   }
 }
 
-void LiveVariables::dfs(Function &f, BasicBlock &cur, std::set<BasicBlock *> &visited) {
+void LiveVariableAnalysis::dfs(Function &f, BasicBlock &cur,
+                        std::set<BasicBlock *> &visited) {
   visited.insert(&cur);
   for (BasicBlock *succ : cur.succs) {
     if (!visited.contains(succ)) {
@@ -112,7 +127,7 @@ void LiveVariables::dfs(Function &f, BasicBlock &cur, std::set<BasicBlock *> &vi
   f.rpo.push_back(&cur);
 }
 
-void LiveVariables::reorderBBs(Function &f) {
+void LiveVariableAnalysis::reorderBBs(Function &f) {
   f.rpo.clear();
   std::set<BasicBlock *> visited;
   assert(f.entry_block != nullptr && "Missing entry block!");
@@ -120,7 +135,7 @@ void LiveVariables::reorderBBs(Function &f) {
   std::reverse(f.rpo.begin(), f.rpo.end());
 }
 
-std::set<u32> LiveVariables::computeLiveOut(BasicBlock &bb) {
+std::set<u32> LiveVariableAnalysis::computeLiveOut(BasicBlock &bb) {
   std::set<u32> res;
   for (BasicBlock *succ : bb.succs) {
     for (u32 uevar : succ->ue_var) {
@@ -136,7 +151,7 @@ std::set<u32> LiveVariables::computeLiveOut(BasicBlock &bb) {
 }
 
 // Solves data flow equations
-void LiveVariables::computeLiveness(Function &f) {
+void LiveVariableAnalysis::computeLiveness(Function &f) {
   // Gathering initial information
   for (auto &bb : f.bbs) {
     bb.ue_var.clear();
@@ -144,8 +159,8 @@ void LiveVariables::computeLiveness(Function &f) {
     bb.var_kill.clear();
 
     for (auto &instr : bb.instructions) {
-      auto reads = instr.getReadRegs();
-      auto writes = instr.getWriteRegs();
+      auto reads = instr->getReadRegs();
+      auto writes = instr->getWriteRegs();
       for (auto &read : reads) {
         if (read.isVirtual() && !bb.var_kill.contains(read.vid)) {
           bb.ue_var.insert(read.vid);
@@ -174,16 +189,19 @@ void LiveVariables::computeLiveness(Function &f) {
   }
 }
 
-void LiveVariables::computeCFG(Function &f) {
+void LiveVariableAnalysis::computeCFG(Function &f) {
   if (f.bbs.empty()) {
     return;
   }
 
   for (BasicBlock &cur : f.bbs) {
-    assert(cur.instructions.back().isJump() || cur.instructions.back().isRet() && "Basic blocks should always end with a jmp or ret for control flow computation!");
+    assert(cur.instructions.back()->isJump() ||
+           cur.instructions.back()->isRet() &&
+               "Basic blocks should always end with a jmp or ret for control "
+               "flow computation!");
     for (auto &instr : cur.instructions) {
-      if (instr.isJump()) {
-        Label label = std::get<Label>(instr.op_infos[0].op);
+      if (instr->isJump()) {
+        Label label = std::get<Label>(instr->op_infos[0].op);
         label.bb.preds.insert(&cur);
         cur.succs.insert(&label.bb);
       }
@@ -191,14 +209,35 @@ void LiveVariables::computeCFG(Function &f) {
   }
 }
 
-void LiveVariables::runPipeline(Module* mod) {
-  for (const auto &f : mod->functions) {
-    computeCFG(*f);
-    computeLiveness(*f);
-    reorderBBs(*f);
-    reenumerate(*f);
-    compute_live_intervals(*f);
+void LiveVariableAnalysis::computeClobberSets(Function &f) {
+  for (auto& li : f.live_int_map) {
+    LiveInterval& interval = li.second;
+    for (auto& cs : clobber_sets) {
+      u32 cs_instr_number = cs.first;
+      if (cs_instr_number >= interval.start && cs.first <= interval.end) {
+        interval.banned_phys = cs.second;
+      }
+    }
   }
 }
 
+void LiveVariableAnalysis::runPass(Module *mod) {
+  LiveVariableAnalysis analysis;
+  for (const auto &f : mod->getFunctionDefs()) {
+    analysis.computeCFG(*f);
+    analysis.computeLiveness(*f);
+    analysis.reorderBBs(*f);
+    analysis.reenumerate(*f);
+    analysis.computeLiveIntervals(*f);
+    analysis.computeClobberSets(*f);
+  }
+}
+
+std::string LiveInterval::toString() {
+  std::string res = std::format("[{};{}]", start, end);
+  if (alloc_reg) {
+    res += std::format(" contained variable {} assigned to {}", variable_id, X86::toString(*alloc_reg));
+  }
+  return res;
+}
 } // namespace X86

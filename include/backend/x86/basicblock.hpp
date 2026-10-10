@@ -4,6 +4,7 @@
 #include <string>
 #include <list>
 #include <set>
+#include <memory>
 #include <backend/x86/instructions.hpp>
 
 namespace X86 {
@@ -16,7 +17,7 @@ class BasicBlock {
   std::string toString() const;
   std::string dbgString() const;
   std::string name;
-  std::list<Instruction> instructions;
+  std::list<std::unique_ptr<Instruction>> instructions;
 
   // CFG analysis, should be factored out of here later probably
   std::set<BasicBlock*> succs;
@@ -33,8 +34,8 @@ class BasicBlock {
   T &insertInstruction(T&& instr)
     requires std::derived_from<T, Instruction>
   {
-    instructions.emplace_back(instr);
-    return static_cast<T &>(instructions.back());
+    instructions.emplace_back(std::make_unique<Instruction>(instr));
+    return static_cast<T &>(*instructions.back());
   }
 };
 

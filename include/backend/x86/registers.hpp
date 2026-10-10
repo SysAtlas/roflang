@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common.hpp>
+#include <vector>
 
 namespace X86 {
 
@@ -31,9 +32,12 @@ class Register {
   i32 vid = -1;
 
   bool isVirtual();
+  static Register getVirtual(u32 size, u32 vid) { return Register{.type = RegisterType::NONE, .size = size, .vid = static_cast<i32>(vid) }; }
 
-  bool operator==(const Register &other) const = default;
-  Register getLo8() const;
+  bool operator==(const Register &other) const {
+    return type == other.type && vid == other.vid;
+  }
+  Register getSubregister(u8 size) const;
 };
 
 Register RAX(u32 size = 64);
@@ -55,5 +59,7 @@ Register RBP(u32 size = 64);
 
 Register returnRegister();
 Register argumentRegister(u8 n);
+
+const std::array<Register, 16>& getAllRegisters();
 
 } // namespace X86

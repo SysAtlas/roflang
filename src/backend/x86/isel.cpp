@@ -36,10 +36,6 @@ public:
     var_name_to_id[name] = reg;
   }
 
-  std::unique_ptr<ISelInfo> generateInfo() {
-    return std::make_unique<ISelInfo>(reg_counter, id_to_var_name);
-  }
-
   VirtualRegisterTracker(std::string_view function_name)
       : function_name{function_name} {}
 };
@@ -99,8 +95,8 @@ void ISel::binOpHelper(BinOp op, const Register &lhs, const Register &rhs) {
     builder->addInstruction(IMul{lhs, rhs});
   } else if (std::ranges::find(CMP_OPS, op) != CMP_OPS.end()) {
     builder->addInstruction(Cmp{lhs, rhs});
-    compareSetHelper(op, lhs.getLo8());
-    builder->addInstruction(MovSX{lhs, lhs.getLo8()});
+    compareSetHelper(op, lhs.getSubregister(8));
+    builder->addInstruction(MovSX{lhs, lhs.getSubregister(8)});
   } else {
     logError("invalid binary operator");
     abort();
@@ -168,6 +164,7 @@ void ISel::select(const AST::IfStatement &if_stmt) {
   BasicBlock &if_body = builder->addBasicBlock(".L_ifbody", builder->cur_bb);
   BasicBlock &after_if = builder->addBasicBlock(".L_afterif", &if_body);
   builder->addInstruction(Jz{after_if});
+  builder->addInstruction(Jmp{if_body});
   builder->setInsertionPoint(if_body);
   for (const auto &S : if_stmt.body) {
     select(S);
@@ -213,6 +210,7 @@ Register ISel::select(const AST::AssignmentStatement &assignment_stmt) {
 void ISel::select(const AST::WhileStatement &while_stmt) {
   BasicBlock &cond_block =
       builder->addBasicBlock(".L_while_cond", builder->cur_bb);
+  builder->addInstruction(Jmp{cond_block});
   BasicBlock &while_body = builder->addBasicBlock(".L_while_body", &cond_block);
   BasicBlock &after_while =
       builder->addBasicBlock(".L_after_while", &while_body);
@@ -221,6 +219,7 @@ void ISel::select(const AST::WhileStatement &while_stmt) {
   Register cond_res = select(while_stmt.cond);
   builder->addInstruction(Cmp{cond_res, Immediate(0)});
   builder->addInstruction(Jz{after_while});
+  builder->addInstruction(Jmp{while_body});
   builder->setInsertionPoint(while_body);
   for (const auto &stmt : while_stmt.body) {
     select(stmt);
@@ -229,14 +228,14 @@ void ISel::select(const AST::WhileStatement &while_stmt) {
   builder->setInsertionPoint(after_while);
 }
 
-Function &ISel::select(const AST::Signature &signature) {
+Function &ISel::select(const AST::Signature &signature, bool is_decl) {
   return builder->addFunction(Function(signature.name, signature.is_static
                                                            ? Linkage::INTERNAL
-                                                           : Linkage::EXTERN));
+                                                           : Linkage::EXTERN, is_decl));
 }
 
 void ISel::select(const AST::Function &f_node) {
-  Function &function = select(*f_node.proto);
+  Function &function = select(*f_node.proto, f_node.is_decl);
 
   if (f_node.is_decl) {
     return;
@@ -266,7 +265,6 @@ void ISel::select(const AST::Function &f_node) {
     select(s);
   }
 
-  isel_infos.push_back(tracker->generateInfo());
   builder->setInsertionPoint(*end_bb);
   builder->addInstruction(Ret{}, end_bb);
 }
@@ -283,10 +281,10 @@ void ISel::select() {
 ISel::ISel(std::unique_ptr<AST::Module> module_tree)
     : tracker{nullptr}, module_tree{std::move(module_tree)} {}
 
-ISel::Result ISel::select(std::unique_ptr<AST::Module> ast) {
+std::unique_ptr<Module> ISel::runPass(std::unique_ptr<AST::Module> ast) {
   ISel isel{std::move(ast)};
   isel.select();
-  return {std::move(isel.mod), std::move(isel.isel_infos)};
+  return std::move(isel.mod);
 }
 
 } // namespace X86

@@ -70,3 +70,5 @@ const BinOpInfo *searchBinOpInfoTable(const std::string &sv);
 
 const RLTypeInfo *searchRLTypeInfoTable(RLType type);
 const RLTypeInfo *searchRLTypeInfoTable(const std::string &sv);
+
+extern bool print_after_isel;

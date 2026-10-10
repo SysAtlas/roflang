@@ -4,3 +4,4 @@ build
 todo.txt
 *.out
 *.sh
+*.s
