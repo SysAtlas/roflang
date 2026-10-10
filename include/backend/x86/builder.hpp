@@ -2,7 +2,9 @@
 
 #include <cassert>
 #include <unordered_map>
-#include <backend/x86/x86.hpp>
+#include <backend/x86/module.hpp>
+#include <backend/x86/basicblock.hpp>
+#include <backend/x86/function.hpp>
 
 namespace X86 {
 
@@ -13,7 +15,7 @@ public:
   Function *cur_function = nullptr;
   BasicBlock *cur_bb = nullptr;
 
-  std::unordered_map<std::string, u32> block_name_counter{};
+  std::unordered_map<std::string, u32> block_name_counter;
 
   template <typename T>
   T &addInstruction(T &&instr, BasicBlock *ins_bb = nullptr)
@@ -25,66 +27,29 @@ public:
     return cur_bb->insertInstruction(std::move(instr));
   }
 
-  Function &addFunction(Function &&f) {
-    return mod->addFunction(std::make_unique<Function>(std::move(f)));
-  }
+  Function &addFunction(Function &&f);
 
-  BasicBlock &addBasicBlock(BasicBlock &&bb, BasicBlock* insert_after) {
-    return cur_function->addBasicBlock(std::move(bb), insert_after);
-  }
+  // Inserts to end by default
+  BasicBlock &addBasicBlock(BasicBlock &&bb, BasicBlock *insert_after = nullptr);
 
-  BasicBlock &addBasicBlock(const std::string& name, BasicBlock* insert_after) {
-    if (block_name_counter.find(name) == block_name_counter.end()) {
-      block_name_counter[name] = 0;
-    }
-    return addBasicBlock(BasicBlock(std::format("{}_{}", name, ++block_name_counter[name])), insert_after);
-  }
+  // Inserts to end by default
+  BasicBlock &addBasicBlock(const std::string &name = "bb", BasicBlock *insert_after = nullptr);
 
-  BasicBlock &getBasicBlock(std::string_view name) {
-    for (BasicBlock &bb : cur_function->bbs) {
-      if (bb.name == name) {
-        return bb;
-      }
-    }
-    std::cerr << "No such basic block!" << '\n';
-    abort();
-  }
+  BasicBlock &getBasicBlock(std::string_view name);
 
-  Function& getFunction(std::string_view name) {
-    for (const auto& f : mod->functions) {
-      if (f->name == name) {
-        return *f;
-      }
-    }
-    std::cerr << "No such function in the module!" << '\n';
-    abort();
-  }
+  Function &getFunction(std::string_view name);
 
-  BasicBlock &getEndBlock() {
-    return getBasicBlock("end");
-  }
+  BasicBlock &getEndBlock();
 
-  BasicBlock *getNextBlock() {
-    auto res = std::ranges::find_if(
-      cur_function->bbs, [this](BasicBlock &bb) { return &bb == cur_bb; });
-    if (res == cur_function->bbs.end()) {
-      return nullptr;
-    }
-    ++res;
-    return (res != cur_function->bbs.end()) ? &*res : nullptr;
-  }
+  BasicBlock *getNextBlock();
 
   // addInstruction will add new instructions to this basic block
-  void setInsertionPoint(BasicBlock &BB) {
-    cur_bb = &BB;
-  }
+  void setInsertionPoint(BasicBlock &bb);
 
   // addBasicBlock will add new basic blocks to this function
-  void setBBInsertionPoint(Function &F) {
-    cur_function = &F;
-  }
+  void setBBInsertionPoint(Function &f);
 
-  Builder(Module *mod) : mod{mod} {}
+  Builder(Module *mod);
 };
 
 } // namespace X86

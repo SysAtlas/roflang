@@ -1,6 +1,9 @@
-#include "backend/x86/registers.hpp"
+#include <backend/x86/registers.hpp>
 #include <backend/x86/stackregalloc.hpp>
 #include <backend/x86/builder.hpp>
+#include <backend/x86/function.hpp>
+#include <backend/x86/instructions.hpp>
+
 
 namespace X86 {
 

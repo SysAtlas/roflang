@@ -23,7 +23,7 @@ Register RBP(u32 size) { return Register{RegisterType::RBP, size}; }
 Register returnRegister() { return RAX(); }
 
 bool Register::isVirtual() {
-  assert((type == RegisterType::NONE) == (vid == -1));
+  assert((type != RegisterType::NONE) == (vid == -1));
   return vid >= 0 && type == RegisterType::NONE;
 }
 

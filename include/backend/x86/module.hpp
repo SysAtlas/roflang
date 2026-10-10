@@ -1,21 +1,20 @@
 #pragma once
+
 #include <common.hpp>
-#include <list>
 #include <memory>
 #include <vector>
-
-#include <backend/x86/registers.hpp>
-#include <backend/x86/instructions.hpp>
-#include <backend/x86/basicblock.hpp>
+#include <unordered_map>
 #include <backend/x86/function.hpp>
 
 namespace X86 {
 
 class Builder;
+class Function;
 
 enum class Linkage { EXTERN, INTERNAL };
 
-struct Module {
+class Module {
+  public:
   std::string emitHeader();
 
   std::vector<std::unique_ptr<Function>> functions;

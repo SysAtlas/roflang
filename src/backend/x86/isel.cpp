@@ -4,7 +4,7 @@
 #include <backend/x86/isel.hpp>
 #include <backend/x86/operands.hpp>
 #include <backend/x86/registers.hpp>
-#include <backend/x86/x86.hpp>
+#include <backend/x86/module.hpp>
 #include <common.hpp>
 #include <memory>
 #include <optional>
@@ -245,7 +245,8 @@ void ISel::select(const AST::Function &f_node) {
   tracker = std::make_unique<VirtualRegisterTracker>(function.name);
   builder->setBBInsertionPoint(function);
   BasicBlock &start =
-      builder->addBasicBlock(BasicBlock(builder->cur_function->name), nullptr);
+      builder->addBasicBlock(BasicBlock(builder->cur_function->name));
+  function.entry_block = &start;
   builder->setInsertionPoint(start);
   end_bb = &builder->addBasicBlock(BasicBlock{"end"}, &start);
 

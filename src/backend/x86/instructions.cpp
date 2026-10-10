@@ -55,6 +55,17 @@ std::string Instruction::toString() const {
   return res;
 }
 
+std::string Instruction::dbgString() const {
+  std::string res = OPCODE_TABLE.at(opcode).name;
+  for (const auto &op_info : op_infos) {
+    res += ' ' + op_info.toString() + ',';
+  }
+  if (!op_infos.empty()) {
+    res.pop_back();
+  }
+  return res;
+}
+
 bool Instruction::isJump() const {
   switch (opcode) {
   case Opcode::JMP:
@@ -70,11 +81,21 @@ bool Instruction::isJump() const {
   }
 }
 
+bool Instruction::isTerminator() const {
+  return opcode == Opcode::RET || isJump();
+}
+bool Instruction::isUncondJump() const {
+  return opcode == Opcode::JMP;
+}
+
+bool Instruction::isRet() const {
+  return opcode == Opcode::RET;
+}
+
 std::vector<Register> Instruction::getReadRegs() {
   std::vector<Register> res;
   for (auto op_info : op_infos) {
-    if (op_info.reads()) { 
-      // TODO: check type
+    if (op_info.reads() && op_info.is<Register>()) { 
       res.push_back(std::get<Register>(op_info.op));
     }
   }

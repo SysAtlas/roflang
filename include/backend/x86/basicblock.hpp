@@ -1,17 +1,20 @@
 #pragma once
 
-#include "common.hpp"
+#include <common.hpp>
 #include <string>
 #include <list>
 #include <set>
+#include <backend/x86/instructions.hpp>
 
 namespace X86 {
 
 class Instruction;
-struct Register;
+class Register;
 
-struct BasicBlock {
+class BasicBlock {
+  public:
   std::string toString() const;
+  std::string dbgString() const;
   std::string name;
   std::list<Instruction> instructions;
 

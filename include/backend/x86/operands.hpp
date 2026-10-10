@@ -7,8 +7,8 @@
 
 namespace X86 {
 
-struct BasicBlock;
-struct Function;
+class BasicBlock;
+class Function;
 
 class Immediate {
 public:
@@ -62,12 +62,16 @@ struct OpInfo {
     return std::holds_alternative<Register>(op);
   }
 
-  template <typename T> const T *getIf() const {
+  template <typename T> T get() {
+    return std::get<T>(op);
+  }
+
+  template <typename T> T getIf() const {
     auto *res = get_if<T>(&op);
     if (!res) {
       return nullptr;
     }
-    return res;
+    return *res;
   }
 
   template <typename T>

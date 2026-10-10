@@ -3,6 +3,8 @@
 
 #include <backend/llvm/llvmcodegen.hpp>
 #include <backend/x86/isel.hpp>
+#include <backend/x86/module.hpp>
+
 #include <llvm/IR/PassManager.h>
 #include <frontend/parser.hpp>
 

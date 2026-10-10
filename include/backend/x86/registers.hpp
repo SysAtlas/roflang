@@ -24,7 +24,8 @@ enum class RegisterType {
   RBP,
 };
 
-struct Register {
+class Register {
+  public:
   RegisterType type;
   u32 size;
   i32 vid = -1;

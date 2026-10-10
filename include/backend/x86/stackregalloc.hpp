@@ -1,6 +1,6 @@
 #pragma once
 
-#include <backend/x86/x86.hpp>
+#include <backend/x86/module.hpp>
 
 namespace X86 {
 // Creates a memory slot for every virtual register.

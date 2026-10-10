@@ -1,9 +1,9 @@
 #pragma once
 
+#include <backend/x86/basicblock.hpp>
 #include <backend/x86/function.hpp>
 #include <backend/x86/operands.hpp>
 #include <backend/x86/registers.hpp>
-#include <backend/x86/basicblock.hpp>
 #include <common.hpp>
 #include <vector>
 
@@ -52,7 +52,11 @@ public:
   std::vector<OpInfo> op_infos;
 
   std::string toString() const;
+  std::string dbgString() const;
   bool isJump() const;
+  bool isUncondJump() const;
+  bool isRet() const;
+  bool isTerminator() const;
 
   // TODO: Replace with an iterator...
   std::vector<Register> getReadRegs();
@@ -111,7 +115,7 @@ struct Sub : public Instruction {
 struct IMul : public Instruction {
   IMul(const Register &dst, const Register &src0)
       : Instruction{
-Opcode::IMUL,
+            Opcode::IMUL,
             {OpInfo{dst, AccessType::DSTSRC}, OpInfo{src0, AccessType::SRC}}} {}
 };
 
@@ -125,7 +129,7 @@ struct IDiv : public Instruction {
 struct MovSX : public Instruction {
   MovSX(const Register &dst, const Register &src)
       : Instruction(Opcode::MOVSX, {OpInfo{dst, AccessType::DST},
-                              OpInfo{src, AccessType::SRC}}) {}
+                                    OpInfo{src, AccessType::SRC}}) {}
 };
 
 struct Xor : public Instruction {
@@ -146,7 +150,7 @@ struct Cmp : public Instruction {
   template <RegImm SrcType>
   Cmp(const Register &dst, const SrcType &src)
       : Instruction{
-Opcode::CMP,
+            Opcode::CMP,
             {OpInfo{dst, AccessType::SRC}, OpInfo{src, AccessType::SRC}}} {}
 };
 

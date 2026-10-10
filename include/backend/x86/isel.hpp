@@ -1,13 +1,18 @@
 #pragma once
 
-#include "backend/x86/registers.hpp"
-#include <backend/x86/x86.hpp>
 #include <frontend/ast.hpp>
 #include <memory>
 
 namespace X86 {
 
 class VirtualRegisterTracker;
+class BasicBlock;
+class Register;
+class Function;
+class Module;
+class Builder;
+struct ISelInfo;
+
 class ISel {
 private:
   // Helper functions
