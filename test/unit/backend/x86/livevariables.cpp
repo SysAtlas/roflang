@@ -71,27 +71,6 @@ TEST(CFGComputation, BasicTest) {
   ASSERT_EQ(bb_3.preds, std::set<BasicBlock *>{&bb_2});
 }
 
-TEST(ReversePostOrder, BasicTest) {
-  auto [builder, mod, function, start_bb] = getBuilder();
-  VRegSpawner spawner;
-
-  auto &bb_2 = builder.addBasicBlock();
-  auto &bb_3 = builder.addBasicBlock();
-
-  builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
-  builder.addInstruction(Jmp{bb_2});
-  builder.setInsertionPoint(bb_2);
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  builder.addInstruction(Jmp{bb_3});
-  builder.setInsertionPoint(bb_3);
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
-  builder.addInstruction(Ret{});
-
-  LiveVariables::runPipeline(builder.mod);
-}
-
 TEST(LiveAnalysis, BasicTest) {
   auto [builder, mod, function, start_bb] = getBuilder();
   VRegSpawner spawner;
@@ -117,7 +96,7 @@ TEST(LiveAnalysis, ExtendsThroughBlocks) {
   auto &bb_2 = builder.addBasicBlock();
   auto &bb_3 = builder.addBasicBlock();
 
-  builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
+  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
   builder.addInstruction(Jmp{bb_2});
   builder.setInsertionPoint(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
@@ -125,13 +104,17 @@ TEST(LiveAnalysis, ExtendsThroughBlocks) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Jmp{bb_3});
   builder.setInsertionPoint(bb_3);
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
+  auto& dead = builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
+  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
+  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Ret{});
 
   LiveVariables::runPipeline(builder.mod);
 
   std::cerr << builder.cur_function->dbgString();
-  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), "[0;24]");
+
+  LiveInterval expected{live.number, dead.number};
+  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), expected.toString());
 }
 
 // Value is clobbered along one of the paths. It should still be live after the
@@ -144,7 +127,7 @@ TEST(LiveAnalysis, DiamondTest) {
   auto &bb_3 = builder.addBasicBlock();
   auto &bb_4 = builder.addBasicBlock();
 
-  builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
+  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
   builder.addInstruction(Jz{bb_2});
   builder.addInstruction(Jmp{bb_3});
 
@@ -159,28 +142,30 @@ TEST(LiveAnalysis, DiamondTest) {
   builder.addInstruction(Jmp{bb_4});
 
   builder.setInsertionPoint(bb_4);
-  builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
+  auto& dead = builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
   LiveVariables::runPipeline(mod.get());
 
   std::cerr << builder.cur_function->dbgString();
 
-  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(),
-            std::format("[0;{}]", (countInstructions(*function) - 2) *
-                                      LiveVariables::ENUMERATION_GAP));
+  LiveInterval expected{live.number, dead.number};
+  ASSERT_EQ(builder.cur_function->live_intervals.at(0).toString(), expected.toString());
 }
 
-// A live interval of a variable that's in a loop should be the whole loop block
+// A live interval of a variable that's in a loop should extend to the end of the loop 
 TEST(LiveAnalysis, LoopTest) {
-  auto [builder, mod, function, cond] = getBuilder();
+  auto [builder, mod, function, start] = getBuilder();
   VRegSpawner spawner;
 
+  auto &cond = builder.addBasicBlock("cond");
   auto &body = builder.addBasicBlock("body");
   auto &after = builder.addBasicBlock("after");
 
   auto counter = spawner.spawnVReg();
-  builder.addInstruction(Mov{counter, Immediate(5)});
+  auto &live = builder.addInstruction(Mov{counter, Immediate(5)});
+  builder.addInstruction(Jmp{cond});
+  builder.setInsertionPoint(cond);
   builder.addInstruction(Sub{counter, Immediate(1)});
   builder.addInstruction(Cmp{counter, Immediate(0)});
   builder.addInstruction(Jz{after});
@@ -188,14 +173,11 @@ TEST(LiveAnalysis, LoopTest) {
 
   builder.setInsertionPoint(body);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  auto loop_start_idx = countInstructions(*function) - 1;
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  auto interesting_register = spawner.spawnVReg();
-  builder.addInstruction(Mov{interesting_register, spawner.spawnVReg()});
+  builder.addInstruction(Mov{spawner.spawnVReg(), counter});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
-  builder.addInstruction(Jmp{*cond});
-  auto loop_end_idx = countInstructions(*function) - 1;
+  auto &dead = builder.addInstruction(Jmp{cond});
 
   builder.setInsertionPoint(after);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
@@ -206,10 +188,8 @@ TEST(LiveAnalysis, LoopTest) {
 
   std::cerr << builder.cur_function->dbgString();
 
-  ASSERT_EQ(
-      builder.cur_function->live_intervals.at(interesting_register.vid)
-          .toString(),
-      std::format("[{};{}]", loop_start_idx * LiveVariables::ENUMERATION_GAP, loop_end_idx * LiveVariables::ENUMERATION_GAP));
+  LiveInterval expected{live.number, dead.number};
+  ASSERT_EQ(builder.cur_function->live_intervals.at(counter.vid).toString(), expected.toString());
 }
 
 } // namespace X86

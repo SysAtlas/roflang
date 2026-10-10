@@ -47,7 +47,7 @@ protected:
       : opcode{opcode}, op_infos{operands} {}
 
 public:
-  i32 number = -1;
+  u32 number = std::numeric_limits<u32>::max();
   Opcode opcode;
   std::vector<OpInfo> op_infos;
 
