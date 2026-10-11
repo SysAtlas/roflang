@@ -65,15 +65,18 @@ public:
   std::list<Register> getClobberSet() const;
 };
 
-// Supported instructions
-// TODO: Support mem or reg..
-
 template <typename T>
 concept RegImm = std::is_same_v<T, Register> || std::is_same_v<T, Immediate>;
 
+template <typename T>
+concept RegMem = std::is_same_v<T, Register> || std::is_same_v<T, MemOp>;
+
+template <typename T>
+concept RegImmMem = std::is_same_v<T, Register> || std::is_same_v<T, Immediate> || std::is_same_v<T, MemOp>;
+
 struct Mov : public Instruction {
-  template <RegImm SrcType>
-  Mov(const Register &dst, const SrcType &src)
+  template <RegMem DstType, RegImmMem SrcType>
+  Mov(const DstType &dst, const SrcType &src)
       : Instruction(Opcode::MOV, {OpInfo{dst, AccessType::DST},
                                   OpInfo{src, AccessType::SRC}}) {}
 };

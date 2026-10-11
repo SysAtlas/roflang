@@ -1,5 +1,6 @@
 #include "backend/x86/callpreservation.hpp"
 #include "backend/x86/livevariables.hpp"
+#include "backend/x86/prologepilog.hpp"
 #include <driver.hpp>
 #include <frontend/sema.hpp>
 
@@ -16,26 +17,26 @@
 
 using namespace llvm;
 
-LLVMDriver::LLVMDriver(std::string_view input_filepath,
-                       std::string_view output_filepath)
-    : input_filepath(input_filepath), output_filepath(output_filepath) {}
+// LLVMDriver::LLVMDriver(std::string_view input_filepath,
+//                        std::string_view output_filepath)
+//     : input_filepath(input_filepath), output_filepath(output_filepath) {}
 
-void LLVMDriver::compile() {
-  std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
-  Sema::analyze(*ast);
+// void LLVMDriver::compile() {
+//   std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
+//   Sema::analyze(*ast);
 
-  LLVMContext the_context{};
-  std::unique_ptr<llvm::Module> M =
-      LLVMCodeGen::generate(std::move(ast), the_context);
+//   LLVMContext the_context{};
+//   std::unique_ptr<llvm::Module> M =
+//       LLVMCodeGen::generate(std::move(ast), the_context);
 
-  if (output_filepath == "-") {
-    M->print(llvm::errs(), nullptr);
-  } else {
-    std::error_code ec;
-    llvm::raw_fd_stream result{output_filepath, ec};
-    M->print(result, nullptr);
-  }
-}
+//   if (output_filepath == "-") {
+//     M->print(llvm::errs(), nullptr);
+//   } else {
+//     std::error_code ec;
+//     llvm::raw_fd_stream result{output_filepath, ec};
+//     M->print(result, nullptr);
+//   }
+// }
 
 X86Driver::X86Driver(std::string_view input_filepath,
                      std::string_view output_filepath)
@@ -43,7 +44,7 @@ X86Driver::X86Driver(std::string_view input_filepath,
 
 void X86Driver::compile() {
   std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
-  Sema::analyze(*ast);
+  // Sema::analyze(*ast);
 
   std::unique_ptr<X86::Module> mod = X86::ISel::runPass(std::move(ast));
   if (print_after_isel) {
@@ -78,6 +79,7 @@ void X86Driver::compile() {
   }
   X86::LSRA::runPass(mod.get());
   X86::CallPreservation::runPass(mod.get());
+  X86::PrologEpilog::runPass(mod.get());
 
   std::string result = mod->toString();
 

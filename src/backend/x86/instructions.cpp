@@ -87,8 +87,7 @@ std::vector<Register> Instruction::getReadRegs() {
 std::vector<Register> Instruction::getWriteRegs() {
   std::vector<Register> res;
   for (auto op_info : op_infos) {
-    if (op_info.writes()) {
-      // TODO: check type
+    if (op_info.writes() && op_info.is<Register>()) {
       res.push_back(std::get<Register>(op_info.op));
     }
   }

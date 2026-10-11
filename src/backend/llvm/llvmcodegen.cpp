@@ -167,7 +167,7 @@ void LLVMCodeGen::codegen(const AST::Statement &SNode) {
   std::visit(overloaded{[this](const auto &Arg) { codegen(*Arg); }}, SNode);
 }
 
-Function *LLVMCodeGen::codegen(const AST::Signature &PNode) {
+Function *LLVMCodeGen::codegen(const AST::Function::Signature &PNode) {
   std::vector<Type *> Params;
   for (const auto& Arg : PNode.args) {
     Params.push_back(Type::getIntNTy(TheContext, Arg.type_info->size_in_bits));
@@ -194,10 +194,10 @@ Function *LLVMCodeGen::codegen(const AST::Signature &PNode) {
 
 Function *LLVMCodeGen::codegen(const AST::Function &FNode) {
   // First, check for an existing function from a previous 'extern' declaration.
-  TheFunction = TheModule->getFunction(FNode.proto->name);
+  TheFunction = TheModule->getFunction(FNode.signature.name);
 
   if (!TheFunction) {
-    TheFunction = codegen(*FNode.proto);
+    TheFunction = codegen(FNode.signature);
   }
 
   if (!TheFunction) {
@@ -253,7 +253,7 @@ void LLVMCodeGen::codegen() {
   for (const AST::Module::TopLevelItem &TLI : ModuleTree->top_level_items) {
     std::visit(
       overloaded{
-        [this](auto &arg) { return codegen(*arg); },
+        [this](auto &arg) { return codegen(arg); },
       },
       TLI);
   }

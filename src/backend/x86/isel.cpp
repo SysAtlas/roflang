@@ -2,9 +2,9 @@
 #include <backend/x86/builder.hpp>
 #include <backend/x86/instructions.hpp>
 #include <backend/x86/isel.hpp>
+#include <backend/x86/module.hpp>
 #include <backend/x86/operands.hpp>
 #include <backend/x86/registers.hpp>
-#include <backend/x86/module.hpp>
 #include <common.hpp>
 #include <memory>
 #include <optional>
@@ -13,31 +13,33 @@ namespace X86 {
 
 class VirtualRegisterTracker {
   u32 reg_counter = 0;
-  std::string function_name;
+  Function *function;
 
-  std::unordered_map<u32, std::string> id_to_var_name;
-  std::unordered_map<std::string, Register> var_name_to_id;
+  std::unordered_map<i32, std::string> offset_to_name;
+  std::unordered_map<std::string, i32> name_to_offset;
+  std::unordered_map<std::string, u8> name_to_size;
 
 public:
-  bool holdsVar(const Register &reg) {
-    return id_to_var_name.find(reg.vid) != id_to_var_name.end();
+  i32 getDisplacement(const std::string &name) {
+    return name_to_offset.at(name);
   }
 
-  Register findRegisterHoldingValue(const std::string &name) {
-    return var_name_to_id.at(name);
-  }
+  u8 getSize(const std::string &name) { return name_to_size.at(name); }
 
   Register getVirtualRegister(u32 size) {
     return Register{RegisterType::NONE, size, static_cast<i32>(reg_counter++)};
   }
 
-  void addVar(const Register &reg, const std::string &name) {
-    id_to_var_name[reg.vid] = name;
-    var_name_to_id[name] = reg;
+  i32 addVar(const std::string &name, u8 size) {
+    ++function->variable_slots;
+    i32 new_offset = -function->variable_slots * 8;
+    offset_to_name[new_offset] = name;
+    name_to_offset[name] = new_offset;
+    name_to_size[name] = size;
+    return new_offset;
   }
 
-  VirtualRegisterTracker(std::string_view function_name)
-      : function_name{function_name} {}
+  VirtualRegisterTracker(Function *function) : function{function} {}
 };
 
 void ISel::logError(std::string_view err_msg) {
@@ -46,13 +48,16 @@ void ISel::logError(std::string_view err_msg) {
 }
 
 Register ISel::select(const AST::NumberExpr &number_expr) {
-  Register reg = tracker->getVirtualRegister(64);
-  builder->addInstruction(Mov{reg, Immediate(number_expr.value)});
+  Register reg = tracker->getVirtualRegister(32);
+  builder->addInstruction(Mov{reg, Immediate(number_expr.value, 64)});
   return reg;
 }
 
 Register ISel::select(const AST::VariableExpr &var_expr) {
-  Register res = tracker->findRegisterHoldingValue(var_expr.name);
+  Register res = tracker->getVirtualRegister(tracker->getSize(var_expr.name));
+  builder->addInstruction(
+      Mov{res, MemOp{RBP(),
+                     Immediate(tracker->getDisplacement(var_expr.name), 64)}});
   return res;
 }
 
@@ -110,18 +115,18 @@ Register ISel::select(const AST::BinaryExpr &bin_expr) {
   BinOp op = bin_expr.op;
 
   if (op == BinOp::DIV || op == BinOp::MOD) {
-    builder->addInstruction(Mov{RAX(), lhs});
+    builder->addInstruction(Mov{RAX().getSubregister(lhs.size), lhs});
     builder->addInstruction(Cqo{});
     builder->addInstruction(IDiv{rhs});
-    auto res = tracker->getVirtualRegister(64);
+    auto res = tracker->getVirtualRegister(rhs.size);
     if (op == BinOp::MOD) {
-      builder->addInstruction(Mov{res, RDX()});
+      builder->addInstruction(Mov{res, RDX().getSubregister(res.size)});
     } else {
-      builder->addInstruction(Mov{res, RAX()});
+      builder->addInstruction(Mov{res, RAX().getSubregister(res.size)});
     }
     return res;
   }
-  const Register &new_reg = tracker->getVirtualRegister(64);
+  const Register &new_reg = tracker->getVirtualRegister(lhs.size);
   builder->addInstruction(Mov{new_reg, lhs});
   binOpHelper(bin_expr.op, new_reg, rhs);
   return new_reg;
@@ -139,12 +144,15 @@ Register ISel::select(const AST::CallExpr &call_expr) {
     const auto &arg = call_expr.args[i];
     arg_vregs.emplace_back(select(arg));
   }
+  const AST::Function* callee = function_map.at(call_expr.callee_name);
   for (usize i = 0; i < call_expr.args.size(); ++i) {
-    builder->addInstruction(Mov{argumentRegister(i), arg_vregs[i]});
+    u32 arg_size = callee->signature.args[i].type_info->size_in_bits;
+    builder->addInstruction(Mov{argumentRegister(i).getSubregister(arg_size), arg_vregs[i]});
   }
   builder->addInstruction(Call{builder->getFunction(call_expr.callee_name)});
-  auto res = tracker->getVirtualRegister(64);
-  builder->addInstruction(Mov{res, RAX()});
+  u8 callee_return_size = callee->signature.return_type_info->size_in_bits;
+  auto res = tracker->getVirtualRegister(callee_return_size);
+  builder->addInstruction(Mov{res, RAX().getSubregister(callee_return_size)});
   return res;
 }
 
@@ -160,7 +168,7 @@ void ISel::select(const AST::Statement &stmt) {
 
 void ISel::select(const AST::IfStatement &if_stmt) {
   const auto &cond_res = select(if_stmt.condition);
-  builder->addInstruction(Cmp{cond_res, Immediate(0)});
+  builder->addInstruction(Cmp{cond_res, Immediate(0, cond_res.size)});
   BasicBlock &if_body = builder->addBasicBlock(".L_ifbody", builder->cur_bb);
   BasicBlock &after_if = builder->addBasicBlock(".L_afterif", &if_body);
   builder->addInstruction(Jz{after_if});
@@ -178,33 +186,24 @@ void ISel::select(const AST::ReturnStatement &return_stmt) {
   if (return_stmt.value.has_value()) {
     Register to_return = select(*return_stmt.value);
     if (to_return != returnRegister()) {
-      builder->addInstruction(Mov{returnRegister(), to_return});
+      builder->addInstruction(Mov{returnRegister().getSubregister(to_return.size), to_return});
     }
   }
   // note: in optimization pass - remove redundant jumps
   builder->addInstruction(Jmp{builder->getEndBlock()});
 }
 
-Register ISel::select(const AST::LocalVarDeclStmt &stmt) {
+void ISel::select(const AST::LocalVarDeclStmt &stmt) {
+  i32 new_var_offset = tracker->addVar(stmt.name, stmt.type_info->size_in_bits);
   Register expr_value = select(stmt.value);
-  if (tracker->holdsVar(expr_value)) {
-    Register res = tracker->getVirtualRegister(64);
-    tracker->addVar(res, stmt.name);
-    builder->addInstruction(Mov{res, expr_value});
-    return res;
-  }
-  tracker->addVar(expr_value, stmt.name);
-  return expr_value;
+  builder->addInstruction(
+      Mov{MemOp{RBP(), Immediate(new_var_offset, 64)}, expr_value});
 }
 
-Register ISel::select(const AST::AssignmentStatement &assignment_stmt) {
+void ISel::select(const AST::AssignmentStatement &assignment_stmt) {
   const auto &rhs = select(assignment_stmt.value);
-  const auto &lhs = tracker->findRegisterHoldingValue(assignment_stmt.name);
-  if (rhs == lhs) {
-    return lhs;
-  }
-  builder->addInstruction(Mov{lhs, rhs});
-  return lhs;
+  i32 offset = tracker->getDisplacement(assignment_stmt.name);
+  builder->addInstruction(Mov{MemOp{RBP(), Immediate(offset, 64)}, rhs});
 }
 
 void ISel::select(const AST::WhileStatement &while_stmt) {
@@ -217,7 +216,7 @@ void ISel::select(const AST::WhileStatement &while_stmt) {
 
   builder->setInsertionBB(cond_block);
   Register cond_res = select(while_stmt.cond);
-  builder->addInstruction(Cmp{cond_res, Immediate(0)});
+  builder->addInstruction(Cmp{cond_res, Immediate(0, 64)});
   builder->addInstruction(Jz{after_while});
   builder->addInstruction(Jmp{while_body});
   builder->setInsertionBB(while_body);
@@ -228,40 +227,46 @@ void ISel::select(const AST::WhileStatement &while_stmt) {
   builder->setInsertionBB(after_while);
 }
 
-Function &ISel::select(const AST::Signature &signature, bool is_decl) {
-  return builder->addFunction(Function(signature.name, signature.is_static
-                                                           ? Linkage::INTERNAL
-                                                           : Linkage::EXTERN, is_decl));
+Function &ISel::select(const AST::Function::Signature &signature, bool is_decl) {
+  return builder->addFunction(Function(
+      signature.name, signature.is_static ? Linkage::INTERNAL : Linkage::EXTERN,
+      is_decl));
 }
 
 void ISel::select(const AST::Function &f_node) {
-  Function &function = select(*f_node.proto, f_node.is_decl);
+  Function &function = select(f_node.signature, f_node.is_decl);
+  assert(function_map.find(function.name) == function_map.end());
+  function_map[function.name] = &f_node;
 
   if (f_node.is_decl) {
     return;
   }
 
-  tracker = std::make_unique<VirtualRegisterTracker>(function.name);
+  tracker = std::make_unique<VirtualRegisterTracker>(&function);
   builder->setFunction(function);
   BasicBlock &start =
       builder->addBasicBlock(BasicBlock(builder->cur_function->name));
   function.entry_block = &start;
   builder->setInsertionBB(start);
-  builder->addInstruction(Push{RBP()});
-  builder->addInstruction(Mov{RBP(), RSP()});
-  end_bb = &builder->addBasicBlock(BasicBlock{std::format("end_{}", function.name), }, &start);
+  end_bb = &builder->addBasicBlock(
+      BasicBlock{
+          std::format("end_{}", function.name),
+      },
+      &start);
   function.exit_block = end_bb;
 
-  if (f_node.proto->args.size() > 6) {
+  if (f_node.signature.args.size() > 6) {
     std::cerr << "Arguments over stack are not supported (yet!)" << '\n';
     abort();
   }
-  for (usize i = 0; i < f_node.proto->args.size(); ++i) {
-    const auto &arg = f_node.proto->args[i];
-    Register arg_vreg = tracker->getVirtualRegister(64);
-    tracker->addVar(arg_vreg,
-                    arg.name ? *arg.name : std::format("unnamed_arg_{}", i));
-    builder->addInstruction(Mov{arg_vreg, argumentRegister(i)});
+  for (usize i = 0; i < f_node.signature.args.size(); ++i) {
+    const auto &arg = f_node.signature.args[i];
+    i32 arg_offset =
+        tracker->addVar(arg.name ? *arg.name : std::format("unnamed_arg_{}", i),
+                        arg.type_info->size_in_bits);
+    builder->addInstruction(
+        Mov{MemOp{RBP(), Immediate(arg_offset, 64)},
+            argumentRegister(i).getSubregister(arg.type_info->size_in_bits)});
   }
 
   for (const auto &s : f_node.body) {
@@ -269,7 +274,6 @@ void ISel::select(const AST::Function &f_node) {
   }
 
   builder->setInsertionBB(*end_bb);
-  builder->addInstruction(Pop{RBP()});
   builder->addInstruction(Ret{}, end_bb);
 }
 
@@ -278,7 +282,7 @@ void ISel::select() {
   builder = std::make_unique<Builder>(mod.get());
 
   for (const auto &tli : module_tree->top_level_items) {
-    std::visit(overloaded{[this](const auto &arg) { select(*arg); }}, tli);
+    std::visit(overloaded{[this](const auto &arg) { select(arg); }}, tli);
   }
 }
 

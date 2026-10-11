@@ -12,8 +12,9 @@ class Function;
 
 class Immediate {
 public:
-  i32 value;
-  explicit Immediate(i32 value) : value{value} {}
+  i64 value;
+  u8 size;
+  Immediate(i64 value, u8 size) : value{value}, size{size} {}
 };
 
 class Label {
@@ -30,16 +31,33 @@ public:
   explicit FunctionRef(Function &fn) : fn{fn} {}
 };
 
+class MemOp {
+  public:
+  std::optional<Register> base;
+  std::optional<Immediate> displacement;
+  std::optional<Register> index;
+  std::optional<Immediate> scale;
+
+  MemOp(Register base) : base{base} {}
+  MemOp(Register base, Immediate displacement)
+      : base{base}, displacement{displacement} {}
+  // MemOp(Register base, Immediate displacement, Register index)
+  //     : base{base}, displacement{displacement}, index{index} {}
+  // MemOp(Register base, Immediate displacement, Register index, Immediate scale)
+  //     : base{base}, displacement{displacement}, index{index}, scale{scale} {}
+};
+
 std::string toString(const Register &reg);
 std::string toString(const Immediate &imm);
 std::string toString(const Label &label);
 std::string toString(const FunctionRef &fn_ref);
+std::string toString(const MemOp &mem_op);
 
 enum class AccessType { DST, SRC, DSTSRC };
 
 // TODO: T is either register or immediate
 struct OpInfo {
-  using Operand = std::variant<Register, Immediate, Label, FunctionRef>;
+  using Operand = std::variant<Register, Immediate, Label, FunctionRef, MemOp>;
   Operand op;
   AccessType access_type;
 
@@ -62,9 +80,7 @@ struct OpInfo {
     return std::holds_alternative<Register>(op);
   }
 
-  template <typename T> T get() {
-    return std::get<T>(op);
-  }
+  template <typename T> T get() { return std::get<T>(op); }
 
   template <typename T> T getIf() const {
     auto *res = get_if<T>(&op);

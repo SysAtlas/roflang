@@ -2,6 +2,7 @@
 
 #include <frontend/ast.hpp>
 #include <memory>
+#include <unordered_map>
 
 namespace X86 {
 
@@ -28,10 +29,10 @@ private:
   void select(const AST::Statement &stmt);
   void select(const AST::IfStatement &if_stmt);
   void select(const AST::ReturnStatement &return_stmt);
-  Register select(const AST::LocalVarDeclStmt &stmt);
-  Register select(const AST::AssignmentStatement &assignment_stmt);
+  void select(const AST::LocalVarDeclStmt &stmt);
+  void select(const AST::AssignmentStatement &assignment_stmt);
   void select(const AST::WhileStatement &while_stmt);
-  Function& select(const AST::Signature& signature, bool is_decl);
+  Function& select(const AST::Function::Signature& signature, bool is_decl);
   void select(const AST::Function &f_node);
   void select();
 
@@ -41,6 +42,7 @@ private:
   std::unique_ptr<AST::Module> module_tree;
   std::unique_ptr<Builder> builder;
 
+  std::unordered_map<std::string, const AST::Function*> function_map;
   ISel(std::unique_ptr<AST::Module> module_tree);
   BasicBlock *end_bb = nullptr;
 public:

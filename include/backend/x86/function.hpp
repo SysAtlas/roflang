@@ -21,6 +21,9 @@ class Function {
   std::string dbgString() const;
   bool is_decl;
 
+  u32 variable_slots = 0;
+  u32 spill_slots = 0;
+
   std::list<BasicBlock> bbs;
   BasicBlock* entry_block;
   BasicBlock* exit_block;

@@ -39,7 +39,7 @@ private:
   void codegen(const AST::AssignmentStatement& SNode);
   void codegen(const AST::WhileStatement &SNode);
 
-  llvm::Function *codegen(const AST::Signature &PNode);
+  llvm::Function *codegen(const AST::Function::Signature &PNode);
   llvm::Function *codegen(const AST::Function &FNode);
   void codegen();
 

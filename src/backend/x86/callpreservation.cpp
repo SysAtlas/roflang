@@ -19,20 +19,19 @@ void CallPreservation::patchFunctions() {
     BasicBlock &start_bb = builder->getBasicBlock(f->name);
     builder->setInsertionBB(start_bb);
     auto it = builder->cur_bb->instructions.begin();
-    // Preamble (push rbp, mov rbp, rsp)
-    std::advance(it, 2);
     for (const Register &reg_to_save : regs_to_save) {
-      builder->insertInstructionBefore(Push{reg_to_save}, it);
+      builder->insertInstructionBefore(Push{reg_to_save.getSubregister(64)}, it);
     }
 
     // Pop registers to save
     BasicBlock &end_bb = *builder->cur_function->exit_block;
     builder->setInsertionBB(end_bb);
-    auto ret_it = --builder->cur_bb->instructions.end();
+    auto ret_it = builder->cur_bb->instructions.end();
+    // Insert before ret
+    std::advance(ret_it, -1);
     for (auto rit = regs_to_save.rbegin(), rie = regs_to_save.rend();
          rit != rie; ++rit) {
-      ret_it =
-          builder->insertInstructionBefore(Pop{*rit}, ret_it);
+      builder->insertInstructionBefore(Pop{rit->getSubregister(64)}, ret_it);
     }
   }
 }
@@ -51,21 +50,21 @@ void CallPreservation::patchCallSites() {
           u8 alignment = 8; // PREAMBLE TAKES 8 BYTES
           for (const Register& reg_to_save : regs_to_save) {
             builder->insertInstructionBefore(
-                Push{reg_to_save,}, it);
+                Push{reg_to_save.getSubregister(64)}, it);
             alignment += 8;
           }
           // Stack should be aligned to 16 bytes before a call
           bool should_align = alignment % 16 != 0;
           if (should_align) {
-            builder->insertInstructionBefore(Sub{RSP(), Immediate(8)}, it);
+            builder->insertInstructionBefore(Sub{RSP(), Immediate(8, 64)}, it);
           }
           ++it;
           if (should_align) {
-            builder->insertInstructionBefore(Add{RSP(), Immediate(8)}, it);
+            builder->insertInstructionBefore(Add{RSP(), Immediate(8, 64)}, it);
           }
           for (auto rit = regs_to_save.rbegin(), rie = regs_to_save.rend();
                rit != rie; ++rit) {
-            builder->insertInstructionBefore(Pop{*rit}, it);
+            builder->insertInstructionBefore(Pop{rit->getSubregister(64)}, it);
           }
         }
       }

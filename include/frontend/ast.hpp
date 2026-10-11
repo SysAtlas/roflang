@@ -17,37 +17,24 @@ struct ReturnStatement;
 struct WhileStatement;
 struct LocalVarDeclStmt;
 struct AssignmentStatement;
-struct FunctionArgument;
-struct Signature;
 struct Function;
 struct Module;
 
-using Expr = std::variant<std::unique_ptr<NumberExpr>,
-                          std::unique_ptr<VariableExpr>,
-                          std::unique_ptr<BinaryExpr>,
-                          std::unique_ptr<CallExpr>>;
+using Expr =
+    std::variant<std::unique_ptr<NumberExpr>, std::unique_ptr<VariableExpr>,
+                 std::unique_ptr<BinaryExpr>, std::unique_ptr<CallExpr>>;
 
-using Statement = std::variant<std::unique_ptr<Expr>,
-                               std::unique_ptr<IfStatement>,
-                               std::unique_ptr<ReturnStatement>,
-                               std::unique_ptr<LocalVarDeclStmt>,
-                               std::unique_ptr<AssignmentStatement>,
-                               std::unique_ptr<WhileStatement>>;
+using Statement = std::variant<
+    std::unique_ptr<Expr>, std::unique_ptr<IfStatement>,
+    std::unique_ptr<ReturnStatement>, std::unique_ptr<LocalVarDeclStmt>,
+    std::unique_ptr<AssignmentStatement>, std::unique_ptr<WhileStatement>>;
 
 // Not used in AST itself, but used by other consumers.
-using ASTNodeView = std::variant<const NumberExpr *,
-                                 const VariableExpr *,
-                                 const BinaryExpr *,
-                                 const CallExpr *,
-                                 const IfStatement *,
-                                 const ReturnStatement *,
-                                 const LocalVarDeclStmt *,
-                                 const AssignmentStatement *,
-                                 const WhileStatement *,
-                                 const Signature *,
-                                 const FunctionArgument *,
-                                 const Function *,
-                                 const Module *>;
+using ASTNodeView =
+    std::variant<const NumberExpr *, const VariableExpr *, const BinaryExpr *,
+                 const CallExpr *, const IfStatement *, const ReturnStatement *,
+                 const LocalVarDeclStmt *, const AssignmentStatement *,
+                 const WhileStatement *, const Function *, const Module *>;
 
 /// NumberExprAST - Expression struct for numeric literals like "1.0".
 struct NumberExpr {
@@ -108,7 +95,8 @@ struct LocalVarDeclStmt {
   const RLTypeInfo *type_info;
   Expr value;
 
-  LocalVarDeclStmt(std::string_view name, const RLTypeInfo *type_info, Expr &&value)
+  LocalVarDeclStmt(std::string_view name, const RLTypeInfo *type_info,
+                   Expr &&value)
       : name{name}, type_info{type_info}, value{std::move(value)} {}
 };
 
@@ -120,44 +108,57 @@ struct WhileStatement {
       : cond{std::move(cond)}, body{std::move(body)} {}
 };
 
-struct FunctionArgument {
-  // Function argument names are optional and must not be specified in an external function.
-  std::optional<std::string> name;
-  const RLTypeInfo *type_info;
-
-  FunctionArgument(std::optional<std::string> name, const RLTypeInfo *type_info)
-      : name{name}, type_info{type_info} {}
-};
-
-/// Signature - This struct represents the signature of a function,
-struct Signature {
-  std::string name;
-  std::vector<FunctionArgument> args;
-  const RLTypeInfo *return_type_info;
-  bool is_static;
-
-  Signature(const std::string &name,
-            std::vector<FunctionArgument> &&args,
-            const RLTypeInfo *return_type_info, bool is_static);
-};
-
 /// Function - This struct represents a function definition itself.
 struct Function {
-  std::unique_ptr<Signature> proto;
+  struct Argument {
+    // Function argument names are optional and must not be specified in an
+    // external function.
+    std::optional<std::string> name;
+    const RLTypeInfo *type_info;
+
+    Argument(std::optional<std::string> name, const RLTypeInfo *type_info)
+        : name{name}, type_info{type_info} {}
+  };
+
+  /// Signature - This struct represents the signature of a function,
+  struct Signature {
+    std::string name;
+    std::vector<Argument> args;
+    const RLTypeInfo *return_type_info;
+    bool is_static;
+
+    Signature(const std::string &name, std::vector<Argument> &&args,
+              const RLTypeInfo *return_type_info, bool is_static);
+  };
+
+  Signature signature;
   std::vector<Statement> body;
   bool is_decl;
 
-  Function(std::unique_ptr<Signature> proto, std::vector<Statement> &&body, bool is_decl)
-      : proto{std::move(proto)}, body{std::move(body)}, is_decl{is_decl} {}
+  Function(Signature &&signature, std::vector<Statement> &&body, bool is_decl)
+      : signature{std::move(signature)}, body{std::move(body)},
+        is_decl{is_decl} {}
 };
 
 // Represents the whole program as an abstract syntax tree
 struct Module {
-  using TopLevelItem = std::variant<std::unique_ptr<Function>>;
+  using TopLevelItem = std::variant<Function>;
   std::vector<TopLevelItem> top_level_items;
 
   Module(std::vector<TopLevelItem> top_level_items)
       : top_level_items{std::move(top_level_items)} {}
+};
+
+struct Node {
+  using NodeValueType =
+      std::variant<Module, Function, WhileStatement, LocalVarDeclStmt,
+                   AssignmentStatement, ReturnStatement, IfStatement, CallExpr,
+                   BinaryExpr, VariableExpr, NumberExpr>;
+  NodeValueType value;
+
+  SourceLocation loc{};
+
+  template <typename T> Node(T value) : value{value} {}
 };
 
 void getSubtree(const NumberExpr &number_expr, std::vector<ASTNodeView> &acc);
@@ -174,8 +175,6 @@ void getSubtree(const LocalVarDeclStmt &S, std::vector<ASTNodeView> &acc);
 void getSubtree(const AssignmentStatement &S, std::vector<ASTNodeView> &acc);
 void getSubtree(const WhileStatement &S, std::vector<ASTNodeView> &acc);
 void getSubtree(const Statement &S, std::vector<ASTNodeView> &acc);
-
-void getSubtree(const Signature &P, std::vector<ASTNodeView> &acc);
 void getSubtree(const Function &F, std::vector<ASTNodeView> &acc);
 void getSubtree(const Module &M, std::vector<ASTNodeView> &acc);
 

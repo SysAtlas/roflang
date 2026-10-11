@@ -10,13 +10,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-fsanitize=address -Wall -Wextra -Wpedantic)
+add_compile_options(-fsanitize=address -fsanitize=undefined -Wall -Wextra -Wpedantic)
 add_link_options(-fsanitize=address)
 
 find_package(LLVM REQUIRED CONFIG)
 
 file(GLOB_RECURSE sources src/*.cpp)
-list(FILTER sources EXCLUDE REGEX ".*/roflc\\.cpp$")
+list(FILTER sources EXCLUDE REGEX ".*/(roflc|llvmcodegen)\\.cpp$")
 
 add_library(roflang ${sources})
 target_include_directories(roflang PUBLIC include)
