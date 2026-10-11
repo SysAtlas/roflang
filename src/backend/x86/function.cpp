@@ -5,8 +5,15 @@ namespace X86 {
 
 std::string Function::toString() const {
   std::string res;
+  res += std::format(".type {}, @function\n", name);
   for (const BasicBlock &bb : bbs) {
     res += bb.toString() + '\n';
+  }
+  if (!bbs.empty()) {
+    res.pop_back();
+  }
+  if (!is_decl) {
+    res += std::format(".size {}, .-{}\n\n", name, name);
   }
   return res;
 }

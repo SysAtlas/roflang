@@ -23,6 +23,7 @@ class Function {
 
   std::list<BasicBlock> bbs;
   BasicBlock* entry_block;
+  BasicBlock* exit_block;
 
   std::list<BasicBlock*> rpo;
   std::unordered_map<u32, LiveInterval> live_int_map;

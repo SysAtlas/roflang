@@ -1,3 +1,4 @@
+#include "backend/x86/basicblock.hpp"
 #include <backend/x86/builder.hpp>
 
 namespace X86 {
@@ -37,7 +38,7 @@ Function &Builder::getFunction(std::string_view name) {
   std::cerr << "No such function in the module!" << '\n';
   abort();
 }
-BasicBlock &Builder::getEndBlock() { return getBasicBlock("end"); }
+BasicBlock &Builder::getEndBlock() { return *cur_function->exit_block; }
 BasicBlock *Builder::getNextBlock() {
   auto res = std::ranges::find_if(
       cur_function->bbs, [this](BasicBlock &bb) { return &bb == cur_bb; });
@@ -47,8 +48,15 @@ BasicBlock *Builder::getNextBlock() {
   ++res;
   return (res != cur_function->bbs.end()) ? &*res : nullptr;
 }
-void Builder::setInsertionPoint(BasicBlock &bb) { cur_bb = &bb; }
-void Builder::setBBInsertionPoint(Function &f) { cur_function = &f; }
+
+std::list<std::unique_ptr<Instruction>>::iterator Builder::insertInstructionBefore(
+    Instruction &&to_insert,
+    std::list<std::unique_ptr<Instruction>>::iterator before) {
+  return cur_bb->instructions.insert(before, std::make_unique<Instruction>(to_insert));
+}
+
+void Builder::setInsertionBB(BasicBlock &bb) { cur_bb = &bb; }
+void Builder::setFunction(Function &f) { cur_function = &f; }
 Builder::Builder(Module *mod) : mod{mod} {}
 
 } // namespace X86

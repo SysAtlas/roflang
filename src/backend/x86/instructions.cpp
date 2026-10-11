@@ -10,33 +10,19 @@ struct OpcodeInfo {
 };
 
 static const std::unordered_map<Opcode, OpcodeInfo> OPCODE_TABLE = {{
-    {Opcode::MOV, {"mov", {}}},
-    {Opcode::PUSH, {"push", {}}},
-    {Opcode::POP, {"pop", {}}},
-    {Opcode::XCHG, {"xchg", {}}},
-    {Opcode::ADD, {"add", {}}},
-    {Opcode::SUB, {"sub", {}}},
-    {Opcode::IMUL, {"imul", {}}},
-    {Opcode::IDIV, {"idiv", {RAX(), RDX()}}},
-    {Opcode::MOVSX, {"movsx", {}}},
-    {Opcode::CQO, {"cqo", {RDX()}}},
-    {Opcode::XOR, {"xor", {}}},
-    {Opcode::CMP, {"cmp", {}}},
-    {Opcode::SETZ, {"setz", {}}},
-    {Opcode::SETNE, {"setne", {}}},
-    {Opcode::SETLE, {"setle", {}}},
-    {Opcode::SETL, {"setl", {}}},
-    {Opcode::SETGE, {"setge", {}}},
-    {Opcode::SETG, {"setg", {}}},
-    {Opcode::JMP, {"jmp", {}}},
-    {Opcode::CALL,
-     {"call", {RAX(), RCX(), RDX(), RSI(), RDI(), R8(), R9(), R10(), R11()}}},
-    {Opcode::RET, {"ret", {}}},
-    {Opcode::JZ, {"jz", {}}},
-    {Opcode::JG, {"jg", {}}},
-    {Opcode::JGE, {"jge", {}}},
-    {Opcode::JL, {"jl", {}}},
-    {Opcode::JLE, {"jle", {}}},
+    {Opcode::MOV, {"mov", {}}},     {Opcode::PUSH, {"push", {}}},
+    {Opcode::POP, {"pop", {}}},     {Opcode::XCHG, {"xchg", {}}},
+    {Opcode::ADD, {"add", {}}},     {Opcode::SUB, {"sub", {}}},
+    {Opcode::IMUL, {"imul", {}}},   {Opcode::IDIV, {"idiv", {RAX(), RDX()}}},
+    {Opcode::MOVSX, {"movsx", {}}}, {Opcode::CQO, {"cqo", {RDX()}}},
+    {Opcode::XOR, {"xor", {}}},     {Opcode::CMP, {"cmp", {}}},
+    {Opcode::SETZ, {"setz", {}}},   {Opcode::SETNE, {"setne", {}}},
+    {Opcode::SETLE, {"setle", {}}}, {Opcode::SETL, {"setl", {}}},
+    {Opcode::SETGE, {"setge", {}}}, {Opcode::SETG, {"setg", {}}},
+    {Opcode::JMP, {"jmp", {}}},     {Opcode::CALL, {"call", {}}},
+    {Opcode::RET, {"ret", {}}},     {Opcode::JZ, {"jz", {}}},
+    {Opcode::JG, {"jg", {}}},       {Opcode::JGE, {"jge", {}}},
+    {Opcode::JL, {"jl", {}}},       {Opcode::JLE, {"jle", {}}},
     {Opcode::JNE, {"jne", {}}},
 }};
 
@@ -84,18 +70,14 @@ bool Instruction::isJump() const {
 bool Instruction::isTerminator() const {
   return opcode == Opcode::RET || isJump();
 }
-bool Instruction::isUncondJump() const {
-  return opcode == Opcode::JMP;
-}
+bool Instruction::isUncondJump() const { return opcode == Opcode::JMP; }
 
-bool Instruction::isRet() const {
-  return opcode == Opcode::RET;
-}
+bool Instruction::isRet() const { return opcode == Opcode::RET; }
 
 std::vector<Register> Instruction::getReadRegs() {
   std::vector<Register> res;
   for (auto op_info : op_infos) {
-    if (op_info.reads() && op_info.is<Register>()) { 
+    if (op_info.reads() && op_info.is<Register>()) {
       res.push_back(std::get<Register>(op_info.op));
     }
   }
@@ -105,7 +87,7 @@ std::vector<Register> Instruction::getReadRegs() {
 std::vector<Register> Instruction::getWriteRegs() {
   std::vector<Register> res;
   for (auto op_info : op_infos) {
-    if (op_info.writes()) { 
+    if (op_info.writes()) {
       // TODO: check type
       res.push_back(std::get<Register>(op_info.op));
     }

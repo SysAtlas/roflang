@@ -36,10 +36,10 @@ getBuilder() {
   auto mod = std::make_unique<Module>();
   Builder builder(mod.get());
   Function &function = builder.addFunction(Function("test", Linkage::EXTERN, false));
-  builder.setBBInsertionPoint(function);
+  builder.setFunction(function);
   BasicBlock &bb = builder.addBasicBlock();
   function.entry_block = &bb;
-  builder.setInsertionPoint(bb);
+  builder.setInsertionBB(bb);
   return {builder, std::move(mod), &function, &bb};
 }
 
@@ -53,12 +53,12 @@ TEST(CFGComputation, BasicTest) {
 
   builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
   builder.addInstruction(Jmp{bb_2});
-  builder.setInsertionPoint(bb_2);
+  builder.setInsertionBB(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Jmp{bb_3});
-  builder.setInsertionPoint(bb_3);
+  builder.setInsertionBB(bb_3);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
@@ -100,12 +100,12 @@ TEST(LiveAnalysis, ExtendsThroughBlocks) {
 
   auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
   builder.addInstruction(Jmp{bb_2});
-  builder.setInsertionPoint(bb_2);
+  builder.setInsertionBB(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Jmp{bb_3});
-  builder.setInsertionPoint(bb_3);
+  builder.setInsertionBB(bb_3);
   auto& dead = builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
@@ -133,17 +133,17 @@ TEST(LiveAnalysis, DiamondTest) {
   builder.addInstruction(Jz{bb_2});
   builder.addInstruction(Jmp{bb_3});
 
-  builder.setInsertionPoint(bb_2);
+  builder.setInsertionBB(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Jmp{bb_4});
 
-  builder.setInsertionPoint(bb_3);
+  builder.setInsertionBB(bb_3);
   builder.addInstruction(Mov{spawner.getVReg(0), Immediate(0)});
   builder.addInstruction(Jmp{bb_4});
 
-  builder.setInsertionPoint(bb_4);
+  builder.setInsertionBB(bb_4);
   auto& dead = builder.addInstruction(Mov{spawner.spawnVReg(), spawner.getVReg(0)});
   builder.addInstruction(Ret{});
 
@@ -167,13 +167,13 @@ TEST(LiveAnalysis, LoopTest) {
   auto counter = spawner.spawnVReg();
   auto &live = builder.addInstruction(Mov{counter, Immediate(5)});
   builder.addInstruction(Jmp{cond});
-  builder.setInsertionPoint(cond);
+  builder.setInsertionBB(cond);
   builder.addInstruction(Sub{counter, Immediate(1)});
   builder.addInstruction(Cmp{counter, Immediate(0)});
   builder.addInstruction(Jz{after});
   builder.addInstruction(Jmp{body});
 
-  builder.setInsertionPoint(body);
+  builder.setInsertionBB(body);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), counter});
@@ -181,7 +181,7 @@ TEST(LiveAnalysis, LoopTest) {
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   auto &dead = builder.addInstruction(Jmp{cond});
 
-  builder.setInsertionPoint(after);
+  builder.setInsertionBB(after);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
   builder.addInstruction(Ret{});

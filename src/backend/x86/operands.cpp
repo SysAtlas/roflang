@@ -83,7 +83,7 @@ std::string toString(const Register &reg) {
     if (reg.size == 8) {
       return "dil";
     }
-    return "rd";
+    return "rdi";
   }
   case (RegisterType::RSI): {
     if (reg.size == 8) {

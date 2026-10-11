@@ -25,9 +25,9 @@ public:
 
 class FunctionRef {
 public:
-  const Function &fn;
+  Function &fn;
 
-  explicit FunctionRef(const Function &fn) : fn{fn} {}
+  explicit FunctionRef(Function &fn) : fn{fn} {}
 };
 
 std::string toString(const Register &reg);

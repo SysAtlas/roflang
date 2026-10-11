@@ -72,3 +72,4 @@ const RLTypeInfo *searchRLTypeInfoTable(RLType type);
 const RLTypeInfo *searchRLTypeInfoTable(const std::string &sv);
 
 extern bool print_after_isel;
+extern bool print_after_li;

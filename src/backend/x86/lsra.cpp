@@ -24,7 +24,7 @@ void LSRA::spill_at_interval(LiveInterval &i) {
   assert(!active_intervals.empty());
   LiveInterval spill = active_intervals.back();
   bool should_swap =
-      std::ranges::find(i.banned_phys, spill.alloc_reg) == i.banned_phys.end();
+      std::ranges::find(i.clobber_set, spill.alloc_reg) == i.clobber_set.end();
   if (spill.end > i.end && should_swap) {
     i.alloc_reg = *spill.alloc_reg;
     spilled_variables.insert(spill.variable_id);
@@ -68,7 +68,7 @@ void LSRA::allocate(Function &f) {
     bool should_spill = true;
     for (auto it = free_registers.begin(), ie = free_registers.end(); it != ie;
          ++it) {
-      if (std::ranges::find(i.banned_phys, *it) == i.banned_phys.end()) {
+      if (std::ranges::find(i.clobber_set, *it) == i.clobber_set.end()) {
         i.alloc_reg = *it;
         free_registers.erase(it);
         add_to_active(i);
@@ -121,7 +121,7 @@ void LSRA::virt_to_phys(Function &function) {
 void LSRA::runPipeline() {
   for (auto &function : mod->getFunctionDefs()) {
     // TODO: pressure regalloc, test with different configurations and different free registers
-    free_registers = {getAllRegisters().begin(), getAllRegisters().end()};
+    free_registers = {getAllocatableRegisters().begin(), getAllocatableRegisters().end()};
     active_intervals.clear();
     spilled_variables.clear();
     id_to_phys_reg.clear();

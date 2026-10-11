@@ -98,7 +98,8 @@ struct Xchg : public Instruction {
 // Arithmetic
 
 struct Add : public Instruction {
-  Add(const Register &dst, const Register &src)
+  template <RegImm SrcType>
+  Add(const Register &dst, const SrcType &src)
       : Instruction{
             Opcode::ADD,
             {OpInfo{dst, AccessType::DSTSRC}, OpInfo{src, AccessType::SRC}}} {}

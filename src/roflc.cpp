@@ -12,6 +12,11 @@ static cl::opt<bool>
 
 static cl::opt<bool>
   after_isel("after-isel", cl::desc("Print assembly after instruction selection pass"), cl::init(false));
+  
+static cl::opt<bool>
+  after_li("after-li", cl::desc("Print assembly after live interval analysis pass"), cl::init(false));
+
+bool print_after_li = false;
 
 bool print_after_isel = false;
 
@@ -33,6 +38,7 @@ int main(int argc, char **argv) {
   print_debug_messages = enable_dbg_messages;
   #endif
   print_after_isel = after_isel;
+  print_after_li = after_li;
 
   std::unique_ptr<IDriver> driver = nullptr;
   if (emit_llvm_ir) {

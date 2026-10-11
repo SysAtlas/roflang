@@ -20,12 +20,12 @@ struct LiveInterval {
   u32 end = 0;
   u32 variable_id = std::numeric_limits<u32>::max();
   // The list of registers the live range can't be assigned to
-  std::list<Register> banned_phys;
+  std::set<Register> clobber_set;
 
   // Used by regalloc
   std::optional<Register> alloc_reg;
 
-  std::string toString();
+  std::string toString() const;
   LiveInterval(u32 start, u32 end, u32 variable_id)
       : start{start}, end{end}, variable_id(variable_id) {}
   LiveInterval(u32 variable_id) : variable_id(variable_id) {}

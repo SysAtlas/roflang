@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <common.hpp>
 #include <vector>
 
@@ -37,6 +38,11 @@ class Register {
   bool operator==(const Register &other) const {
     return type == other.type && vid == other.vid;
   }
+  // Non-virtual registers shouldn't be compared
+  bool operator<(const Register& other) const {
+    assert(vid == -1 && other.vid == -1);
+    return type < other.type;
+  }
   Register getSubregister(u8 size) const;
 };
 
@@ -60,6 +66,10 @@ Register RBP(u32 size = 64);
 Register returnRegister();
 Register argumentRegister(u8 n);
 
-const std::array<Register, 16>& getAllRegisters();
+const std::array<Register, 14>& getAllocatableRegisters();
+const std::array<Register, 7> &getCalleeSaved();
+const std::array<Register, 9> &getCallerSaved();
+bool isCallerSaved(const Register &reg);
+bool isCalleeSaved(const Register &reg);
 
 } // namespace X86

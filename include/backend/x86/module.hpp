@@ -32,6 +32,7 @@ class Module {
 
   public:
   std::string toString();
+  std::string dbgString();
   Module() = default;
   friend Builder;
 };

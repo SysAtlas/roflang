@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cassert>
-#include <unordered_map>
-#include <backend/x86/module.hpp>
 #include <backend/x86/basicblock.hpp>
 #include <backend/x86/function.hpp>
+#include <backend/x86/module.hpp>
+#include <cassert>
+#include <unordered_map>
 
 namespace X86 {
 
@@ -30,12 +30,18 @@ public:
   Function &addFunction(Function &&f);
 
   // Inserts to end by default
-  BasicBlock &addBasicBlock(BasicBlock &&bb, BasicBlock *insert_after = nullptr);
+  BasicBlock &addBasicBlock(BasicBlock &&bb,
+                            BasicBlock *insert_after = nullptr);
 
   // Inserts to end by default
-  BasicBlock &addBasicBlock(const std::string &name = "bb", BasicBlock *insert_after = nullptr);
+  BasicBlock &addBasicBlock(const std::string &name = "bb",
+                            BasicBlock *insert_after = nullptr);
 
   BasicBlock &getBasicBlock(std::string_view name);
+
+  std::list<std::unique_ptr<Instruction>>::iterator insertInstructionBefore(
+      Instruction &&to_insert,
+      std::list<std::unique_ptr<Instruction>>::iterator before);
 
   Function &getFunction(std::string_view name);
 
@@ -44,10 +50,10 @@ public:
   BasicBlock *getNextBlock();
 
   // addInstruction will add new instructions to this basic block
-  void setInsertionPoint(BasicBlock &bb);
+  void setInsertionBB(BasicBlock &bb);
 
   // addBasicBlock will add new basic blocks to this function
-  void setBBInsertionPoint(Function &f);
+  void setFunction(Function &f);
 
   Builder(Module *mod);
 };

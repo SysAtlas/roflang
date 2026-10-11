@@ -165,13 +165,13 @@ void ISel::select(const AST::IfStatement &if_stmt) {
   BasicBlock &after_if = builder->addBasicBlock(".L_afterif", &if_body);
   builder->addInstruction(Jz{after_if});
   builder->addInstruction(Jmp{if_body});
-  builder->setInsertionPoint(if_body);
+  builder->setInsertionBB(if_body);
   for (const auto &S : if_stmt.body) {
     select(S);
   }
   // note: in optimization pass - remove redundant jumps
   builder->addInstruction(Jmp{after_if});
-  builder->setInsertionPoint(after_if);
+  builder->setInsertionBB(after_if);
 }
 
 void ISel::select(const AST::ReturnStatement &return_stmt) {
@@ -215,17 +215,17 @@ void ISel::select(const AST::WhileStatement &while_stmt) {
   BasicBlock &after_while =
       builder->addBasicBlock(".L_after_while", &while_body);
 
-  builder->setInsertionPoint(cond_block);
+  builder->setInsertionBB(cond_block);
   Register cond_res = select(while_stmt.cond);
   builder->addInstruction(Cmp{cond_res, Immediate(0)});
   builder->addInstruction(Jz{after_while});
   builder->addInstruction(Jmp{while_body});
-  builder->setInsertionPoint(while_body);
+  builder->setInsertionBB(while_body);
   for (const auto &stmt : while_stmt.body) {
     select(stmt);
   }
   builder->addInstruction(Jmp{cond_block});
-  builder->setInsertionPoint(after_while);
+  builder->setInsertionBB(after_while);
 }
 
 Function &ISel::select(const AST::Signature &signature, bool is_decl) {
@@ -242,12 +242,15 @@ void ISel::select(const AST::Function &f_node) {
   }
 
   tracker = std::make_unique<VirtualRegisterTracker>(function.name);
-  builder->setBBInsertionPoint(function);
+  builder->setFunction(function);
   BasicBlock &start =
       builder->addBasicBlock(BasicBlock(builder->cur_function->name));
   function.entry_block = &start;
-  builder->setInsertionPoint(start);
-  end_bb = &builder->addBasicBlock(BasicBlock{"end"}, &start);
+  builder->setInsertionBB(start);
+  builder->addInstruction(Push{RBP()});
+  builder->addInstruction(Mov{RBP(), RSP()});
+  end_bb = &builder->addBasicBlock(BasicBlock{std::format("end_{}", function.name), }, &start);
+  function.exit_block = end_bb;
 
   if (f_node.proto->args.size() > 6) {
     std::cerr << "Arguments over stack are not supported (yet!)" << '\n';
@@ -265,7 +268,8 @@ void ISel::select(const AST::Function &f_node) {
     select(s);
   }
 
-  builder->setInsertionPoint(*end_bb);
+  builder->setInsertionBB(*end_bb);
+  builder->addInstruction(Pop{RBP()});
   builder->addInstruction(Ret{}, end_bb);
 }
 

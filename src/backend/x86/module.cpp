@@ -23,10 +23,19 @@ std::string Module::emitHeader() {
 
   return res;
 }
+
 std::string Module::toString() {
   std::string result = emitHeader();
   for (const auto &fn : functions) {
     result += fn->toString();
+  }
+  return result;
+}
+
+std::string Module::dbgString() {
+  std::string result = emitHeader();
+  for (const auto &fn : functions) {
+    result += fn->dbgString();
   }
   return result;
 }

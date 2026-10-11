@@ -1,6 +1,5 @@
 #include <backend/x86/registers.hpp>
 #include <cassert>
-#include <vector>
 
 namespace X86 {
 
@@ -21,10 +20,44 @@ Register RDI(u32 size) { return Register{RegisterType::RDI, size}; }
 Register RSP(u32 size) { return Register{RegisterType::RSP, size}; }
 Register RBP(u32 size) { return Register{RegisterType::RBP, size}; }
 
-const std::array<Register, 16>& getAllRegisters() {
-  static const std::array<Register, 16> all_regs= {RAX(), RBX(), RCX(), RDX(), R8(),  R9(),  R10(), R11(), R12(), R13(), R14(), R15(), RSI(), RDI(), RSP(), RBP()};
-  return all_regs;
+const std::array<Register, 14> &getAllocatableRegisters() {
+  static const std::array<Register, 14> ALL_REGS = {
+      RAX(), RBX(), RCX(), RDX(), R8(),  R9(),  R10(), R11(),
+      R12(), R13(), R14(), R15(), RSI(), RDI()};
+  return ALL_REGS;
 }
+
+const std::array<Register, 9> &getCallerSaved() {
+  static const std::array<Register, 9> CALLER_SAVED = {
+      RAX(), RCX(), RDX(), RSI(), RDI(), R8(), R9(), R10(), R11()};
+  return CALLER_SAVED;
+}
+
+const std::array<Register, 7> &getCalleeSaved() {
+  static const std::array<Register, 7> CALLEE_SAVED = {
+      RBX(), RBP(), RSP(), R12(), R13(), R14(), R15()};
+  return CALLEE_SAVED;
+}
+
+bool isCallerSaved(const Register &reg) {
+  switch (reg.type) {
+  case (RegisterType::RAX):
+  case (RegisterType::RCX):
+  case (RegisterType::RDX):
+  case (RegisterType::RSI):
+  case (RegisterType::RDI):
+  case (RegisterType::R8):
+  case (RegisterType::R9):
+  case (RegisterType::R10):
+  case (RegisterType::R11):
+    return true;
+  default: {
+    return false;
+  }
+  }
+}
+
+bool isCalleeSaved(const Register &reg) { return !isCallerSaved(reg); }
 
 Register returnRegister() { return RAX(); }
 
@@ -40,9 +73,9 @@ Register Register::getSubregister(u8 size) const {
 Register argumentRegister(u8 n) {
   switch (n) {
   case 0:
-    return RSI();
-  case 1:
     return RDI();
+  case 1:
+    return RSI();
   case 2:
     return RDX();
   case 3:

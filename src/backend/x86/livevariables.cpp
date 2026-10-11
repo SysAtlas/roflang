@@ -100,6 +100,7 @@ void LiveVariableAnalysis::reenumerate(Function &f) {
   for (BasicBlock *bb : f.rpo) {
     for (auto &instr : bb->instructions) {
       instr->number = (index++) * ENUMERATION_GAP;
+
       auto clobber_set = instr->getClobberSet();
       for (auto& op : instr->op_infos) {
         if (op.is<Register>()) {
@@ -214,8 +215,8 @@ void LiveVariableAnalysis::computeClobberSets(Function &f) {
     LiveInterval& interval = li.second;
     for (auto& cs : clobber_sets) {
       u32 cs_instr_number = cs.first;
-      if (cs_instr_number >= interval.start && cs.first <= interval.end) {
-        interval.banned_phys = cs.second;
+      if (cs_instr_number >= interval.start && cs_instr_number <= interval.end) {
+        interval.clobber_set.insert(cs.second.begin(), cs.second.end());
       }
     }
   }
@@ -233,10 +234,19 @@ void LiveVariableAnalysis::runPass(Module *mod) {
   }
 }
 
-std::string LiveInterval::toString() {
-  std::string res = std::format("[{};{}]", start, end);
+std::string LiveInterval::toString() const {
+  std::string res = std::format("[{};{}] <= v{}", start, end, variable_id);
+  res += " clobber set: [";
+  for (auto& clobber : clobber_set) {
+    res += std::format("{}, ", X86::toString(clobber));
+  }
+  if (!clobber_set.empty()) {
+    res.pop_back();
+    res.pop_back();
+  }
+  res += "]";
   if (alloc_reg) {
-    res += std::format(" contained variable {} assigned to {}", variable_id, X86::toString(*alloc_reg));
+    res += std::format(" => {}", variable_id, X86::toString(*alloc_reg));
   }
   return res;
 }

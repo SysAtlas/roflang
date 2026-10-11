@@ -1,14 +1,15 @@
-extern putchar(i32) -> i32;
+fn putchar(i32) -> i32;
 
-def print_alphabet() -> void {
+fn print_alphabet() -> void {
   counter: i32 = 65;
   while (counter < 91) {
     putchar(counter);
     counter = counter + 1;
   }
+  return;
 }
 
-def main() -> void
+fn main() -> void
 {
   print_alphabet();
   return;
