@@ -21,14 +21,14 @@ llvm::Value *LogErrorV(const char *Str) {
   return nullptr;
 }
 
-LLVMCodeGen::LLVMCodeGen(std::unique_ptr<AST::Module> module_tree,
+LLVMCodeGen::LLVMCodeGen(UP<AST::Module> module_tree,
                          LLVMContext &context)
     : TheContext(context),
       TheModule(std::make_unique<Module>("roflang", TheContext)),
       Builder(std::make_unique<IRBuilder<>>(TheContext)),
       ModuleTree{std::move(module_tree)} {}
 
-std::unique_ptr<Module> LLVMCodeGen::generate(std::unique_ptr<AST::Module> AST,
+UP<Module> LLVMCodeGen::generate(UP<AST::Module> AST,
                                               llvm::LLVMContext &Context) {
   LLVMCodeGen C{std::move(AST), Context};
   C.codegen();

@@ -12,15 +12,16 @@ private:
   Lexer lexer;
   const Token *cur_tok;
   const char *module_path;
+  AST::Module* mod = nullptr;
 
   // Stmt
   [[nodiscard]] AST::Statement parseStatement();
   [[nodiscard]] std::vector<AST::Statement> parseStatementSequence();
-  [[nodiscard]] std::unique_ptr<AST::ReturnStatement> parseReturnStmt();
-  [[nodiscard]] std::unique_ptr<AST::IfStatement> parseIfStmt();
-  [[nodiscard]] std::unique_ptr<AST::AssignmentStatement> parseAssignmentStmt();
-  [[nodiscard]] std::unique_ptr<AST::WhileStatement> parseWhileStmt();
-  [[nodiscard]] std::unique_ptr<AST::LocalVarDeclStmt> parseLocalDefStatement();
+  [[nodiscard]] UP<AST::ReturnStatement> parseReturnStmt();
+  [[nodiscard]] UP<AST::IfStatement> parseIfStmt();
+  [[nodiscard]] UP<AST::AssignmentStatement> parseAssignmentStmt();
+  [[nodiscard]] UP<AST::WhileStatement> parseWhileStmt();
+  [[nodiscard]] UP<AST::LocalVarDeclStmt> parseLocalDefStatement();
 
   // Expr
   [[nodiscard]] AST::Expr parseExpression();
@@ -36,26 +37,28 @@ private:
   [[nodiscard]] AST::Function parseFunction();
 
   // Module
-  [[nodiscard]] std::unique_ptr<AST::Module> parseModule();
+  [[nodiscard]] UP<AST::Module> parseModule();
 
   // Logging
-  void logError(std::string_view str, std::source_location parser_loc);
+  void logError(std::string_view str);
   
   // For storing source locations. Semantic analysis will refer to them
   // when performing checks
   std::unordered_map<AST::ASTNodeView, SourceLocation> locations;
+  SourceLocation consumed_token_loc{};
 
   const Token *getNextToken();
   const Token *peek();
 
   template <typename T>
   const T *
-  consumeToken(std::source_location loc = std::source_location::current()) {
+  consumeToken() {
     const T *res = cur_tok->getIf<T>();
     if (!res) {
-      logError(std::format("Expected {}", T::TOKEN_NAME), loc);
+      logError(std::format("Expected {}", T::TOKEN_NAME));
     }
     DBGPRINT(std::format("Parser: consumed token {}", cur_tok->print()));
+    consumed_token_loc = cur_tok->source_location;
     getNextToken();
     return res;
   }
@@ -63,5 +66,5 @@ private:
   Parser(const char *module_path);
 
 public:
-  static std::unique_ptr<AST::Module> parse(const char *module_path);
+  static UP<AST::Module> parse(const char *module_path);
 };

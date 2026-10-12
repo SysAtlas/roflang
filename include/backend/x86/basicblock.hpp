@@ -17,7 +17,7 @@ class BasicBlock {
   std::string toString() const;
   std::string dbgString() const;
   std::string name;
-  std::list<std::unique_ptr<Instruction>> instructions;
+  std::list<UP<Instruction>> instructions;
 
   // CFG analysis, should be factored out of here later probably
   std::set<BasicBlock*> succs;

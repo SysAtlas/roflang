@@ -1,4 +1,4 @@
-def function(i32, a: i32) -> i32 {
+fn function() -> i32 {
   a = 5;
   return a;
 }

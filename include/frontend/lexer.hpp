@@ -152,9 +152,10 @@ private:
   const char *module_path;
 
   u32 line = 1;
-  u32 col = 1;
+  u32 col = 0;
 
   SourceLocation getLocInfo();
+  SourceLocation last_source_loc;
 
   i32 last_char;
 
@@ -177,9 +178,8 @@ private:
                                    module_path,
                                    line,
                                    program_lines[line - 1],
-                                   std::string(col - 2, ' ') + "^");
+                                   std::string(col - 1, ' ') + "^");
     std::cerr << full_message << '\n';
-    exit(1);
   }
 
 public:

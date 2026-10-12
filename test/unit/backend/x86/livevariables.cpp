@@ -1,3 +1,4 @@
+#include "common.hpp"
 #include <testutil.hpp>
 
 #include <backend/x86/builder.hpp>
@@ -31,7 +32,7 @@ usize countInstructions(Function &f) {
   return total;
 }
 
-std::tuple<Builder, std::unique_ptr<Module>, Function *, BasicBlock *>
+std::tuple<Builder, UP<Module>, Function *, BasicBlock *>
 getBuilder() {
   auto mod = std::make_unique<Module>();
   Builder builder(mod.get());

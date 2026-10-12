@@ -17,18 +17,10 @@ class Module {
   public:
   std::string emitHeader();
 
-  std::vector<std::unique_ptr<Function>> functions;
-  std::vector<Function*> getFunctionDefs() {
-    std::vector<Function*> res;
-    for (auto& f : functions) {
-      if (!f->is_decl) {
-        res.push_back(f.get());
-      }
-    }
-    return res;
-  }
+  std::vector<UP<Function>> functions;
+  std::vector<Function *> getFunctionDefs();
 
-  Function &addFunction(std::unique_ptr<Function> function);
+  Function &addFunction(UP<Function> function);
 
   public:
   std::string toString();

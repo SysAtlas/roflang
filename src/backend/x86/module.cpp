@@ -40,7 +40,16 @@ std::string Module::dbgString() {
   return result;
 }
 
-Function &Module::addFunction(std::unique_ptr<Function> function) {
+std::vector<Function *> Module::getFunctionDefs() {
+  std::vector<Function *> res;
+  for (auto &f : functions) {
+    if (!f->is_decl) {
+      res.push_back(f.get());
+    }
+  }
+  return res;
+}
+Function &Module::addFunction(UP<Function> function) {
   assert(function != nullptr);
   functions.emplace_back(std::move(function));
   return *functions.back();

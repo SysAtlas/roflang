@@ -37,16 +37,16 @@ private:
   void select();
 
   [[noreturn]] void logError(std::string_view err_msg);
-  std::unique_ptr<VirtualRegisterTracker> tracker;
-  std::unique_ptr<Module> mod;
-  std::unique_ptr<AST::Module> module_tree;
-  std::unique_ptr<Builder> builder;
+  UP<VirtualRegisterTracker> tracker;
+  UP<Module> mod;
+  UP<AST::Module> module_tree;
+  UP<Builder> builder;
 
   std::unordered_map<std::string, const AST::Function*> function_map;
-  ISel(std::unique_ptr<AST::Module> module_tree);
+  ISel(UP<AST::Module> module_tree);
   BasicBlock *end_bb = nullptr;
 public:
-  static std::unique_ptr<Module> runPass(std::unique_ptr<AST::Module> ast);
+  static UP<Module> runPass(UP<AST::Module> ast);
 };
 
 } // namespace X86

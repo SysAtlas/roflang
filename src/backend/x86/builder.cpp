@@ -49,9 +49,9 @@ BasicBlock *Builder::getNextBlock() {
   return (res != cur_function->bbs.end()) ? &*res : nullptr;
 }
 
-std::list<std::unique_ptr<Instruction>>::iterator Builder::insertInstructionBefore(
+std::list<UP<Instruction>>::iterator Builder::insertInstructionBefore(
     Instruction &&to_insert,
-    std::list<std::unique_ptr<Instruction>>::iterator before) {
+    std::list<UP<Instruction>>::iterator before) {
   return cur_bb->instructions.insert(before, std::make_unique<Instruction>(to_insert));
 }
 

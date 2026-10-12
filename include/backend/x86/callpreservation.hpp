@@ -15,7 +15,7 @@ void initClobberMap();
 void patchCallSites();
 
 Module* mod;
-std::unique_ptr<Builder> builder;
+UP<Builder> builder;
 
 CallPreservation(Module *mod);
 

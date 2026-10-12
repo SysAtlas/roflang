@@ -40,12 +40,7 @@ int main(int argc, char **argv) {
   print_after_isel = after_isel;
   print_after_li = after_li;
 
-  std::unique_ptr<IDriver> driver = nullptr;
-  if (emit_llvm_ir) {
-    abort();
-    // driver = std::make_unique<LLVMDriver>(input_filename, output_filename);
-  } else {
-    driver = std::make_unique<X86Driver>(input_filename, output_filename);
-  }
+  UP<IDriver> driver = nullptr;
+  driver = std::make_unique<X86Driver>(input_filename, output_filename);
   driver->compile();
 }

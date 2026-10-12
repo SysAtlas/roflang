@@ -20,14 +20,12 @@ struct AssignmentStatement;
 struct Function;
 struct Module;
 
-using Expr =
-    std::variant<std::unique_ptr<NumberExpr>, std::unique_ptr<VariableExpr>,
-                 std::unique_ptr<BinaryExpr>, std::unique_ptr<CallExpr>>;
+using Expr = std::variant<UP<NumberExpr>, UP<VariableExpr>, UP<BinaryExpr>,
+                          UP<CallExpr>>;
 
-using Statement = std::variant<
-    std::unique_ptr<Expr>, std::unique_ptr<IfStatement>,
-    std::unique_ptr<ReturnStatement>, std::unique_ptr<LocalVarDeclStmt>,
-    std::unique_ptr<AssignmentStatement>, std::unique_ptr<WhileStatement>>;
+using Statement = std::variant<UP<Expr>, UP<IfStatement>, UP<ReturnStatement>,
+                               UP<LocalVarDeclStmt>, UP<AssignmentStatement>,
+                               UP<WhileStatement>>;
 
 // Not used in AST itself, but used by other consumers.
 using ASTNodeView =
@@ -36,88 +34,102 @@ using ASTNodeView =
                  const LocalVarDeclStmt *, const AssignmentStatement *,
                  const WhileStatement *, const Function *, const Module *>;
 
+struct Node {
+public:
+  SourceLocation source_location;
+
+protected:
+  Node(SourceLocation source_location) : source_location{source_location} {}
+};
+
 /// NumberExprAST - Expression struct for numeric literals like "1.0".
-struct NumberExpr {
+struct NumberExpr : public Node {
   i64 value;
 
-  explicit NumberExpr(i64 value) : value(value) {}
+  NumberExpr(i64 value, SourceLocation sloc) : Node(sloc), value(value) {}
 };
 
 /// VariableExprAST - Expression struct for referencing a variable, like "a".
-struct VariableExpr {
+struct VariableExpr : public Node {
   std::string name;
 
-  explicit VariableExpr(const std::string &name) : name(name) {}
+  VariableExpr(const std::string &name, SourceLocation sloc)
+      : Node(sloc), name(name) {}
 };
 
 /// BinaryExprAST - Expression struct for a binary operator.
-struct BinaryExpr {
+struct BinaryExpr : public Node {
   BinOp op;
   Expr lhs, rhs;
 
-  BinaryExpr(BinOp op, Expr &&lhs, Expr &&rhs);
+  BinaryExpr(BinOp op, Expr &&lhs, Expr &&rhs, SourceLocation sloc);
 };
 
 /// CallExprAST - Expression struct for function calls.
-struct CallExpr {
+struct CallExpr : public Node {
   std::string callee_name;
   std::vector<Expr> args;
 
-  CallExpr(const std::string &callee, std::vector<Expr> &&args);
+  CallExpr(const std::string &callee, std::vector<Expr> &&args,
+           SourceLocation sloc);
 };
 
+SourceLocation getExprSourceLocation(const Expr &expr);
+
 // if (expr) { statementsequence }
-struct IfStatement {
+struct IfStatement : public Node {
   Expr condition;
   using IfBodyType = std::vector<Statement>;
   IfBodyType body;
 
-  IfStatement(Expr &&condition, IfBodyType body);
+  IfStatement(Expr &&condition, IfBodyType body, SourceLocation sloc);
 };
 
 // return expr;
-struct ReturnStatement {
+struct ReturnStatement : public Node {
   std::optional<Expr> value;
 
-  explicit ReturnStatement(std::optional<Expr> &&value);
+  ReturnStatement(std::optional<Expr> &&value, SourceLocation sloc);
 };
 
-struct AssignmentStatement {
+struct AssignmentStatement : public Node {
   std::string name;
   Expr value;
 
-  AssignmentStatement(std::string_view name, Expr &&value)
-      : name{name}, value{std::move(value)} {}
+  AssignmentStatement(std::string_view name, Expr &&value, SourceLocation sloc)
+      : Node(sloc), name{name}, value{std::move(value)} {}
 };
 
-struct LocalVarDeclStmt {
+struct LocalVarDeclStmt : public Node {
   std::string name;
   const RLTypeInfo *type_info;
   Expr value;
 
   LocalVarDeclStmt(std::string_view name, const RLTypeInfo *type_info,
-                   Expr &&value)
-      : name{name}, type_info{type_info}, value{std::move(value)} {}
+                   Expr &&value, SourceLocation sloc)
+      : Node(sloc), name{name}, type_info{type_info}, value{std::move(value)} {}
 };
 
-struct WhileStatement {
+struct WhileStatement : public Node {
   Expr cond;
   std::vector<Statement> body;
 
-  WhileStatement(Expr &&cond, std::vector<Statement> &&body)
-      : cond{std::move(cond)}, body{std::move(body)} {}
+  WhileStatement(Expr &&cond, std::vector<Statement> &&body,
+                 SourceLocation sloc)
+      : Node(sloc), cond{std::move(cond)}, body{std::move(body)} {}
 };
 
 /// Function - This struct represents a function definition itself.
-struct Function {
-  struct Argument {
+struct Function : public Node {
+  struct Argument : Node {
     // Function argument names are optional and must not be specified in an
     // external function.
     std::optional<std::string> name;
     const RLTypeInfo *type_info;
 
-    Argument(std::optional<std::string> name, const RLTypeInfo *type_info)
-        : name{name}, type_info{type_info} {}
+    Argument(std::optional<std::string> name, const RLTypeInfo *type_info,
+             SourceLocation sloc)
+        : Node(sloc), name{name}, type_info{type_info} {}
   };
 
   /// Signature - This struct represents the signature of a function,
@@ -135,8 +147,9 @@ struct Function {
   std::vector<Statement> body;
   bool is_decl;
 
-  Function(Signature &&signature, std::vector<Statement> &&body, bool is_decl)
-      : signature{std::move(signature)}, body{std::move(body)},
+  Function(Signature &&signature, std::vector<Statement> &&body, bool is_decl,
+           SourceLocation sloc)
+      : Node(sloc), signature{std::move(signature)}, body{std::move(body)},
         is_decl{is_decl} {}
 };
 
@@ -144,26 +157,13 @@ struct Function {
 struct Module {
   using TopLevelItem = std::variant<Function>;
   std::vector<TopLevelItem> top_level_items;
+  std::string file_path;
+  std::vector<std::string> program_lines;
 
-  Module(std::vector<TopLevelItem> top_level_items)
-      : top_level_items{std::move(top_level_items)} {}
+  Module(std::vector<TopLevelItem> top_level_items, std::string_view file_name,
+         std::vector<std::string> program_lines)
+      : top_level_items{std::move(top_level_items)}, file_path{file_name},
+        program_lines{program_lines} {}
 };
-
-void getSubtree(const NumberExpr &number_expr, std::vector<ASTNodeView> &acc);
-void getSubtree(const VariableExpr &var_expr, std::vector<ASTNodeView> &acc);
-void getSubtree(const BinaryExpr &bin_expr, std::vector<ASTNodeView> &acc);
-
-void getSubtree(const CallExpr &E, std::vector<ASTNodeView> &acc);
-
-void getSubtree(const Expr &E, std::vector<ASTNodeView> &acc);
-
-void getSubtree(const IfStatement &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const ReturnStatement &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const LocalVarDeclStmt &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const AssignmentStatement &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const WhileStatement &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const Statement &S, std::vector<ASTNodeView> &acc);
-void getSubtree(const Function &F, std::vector<ASTNodeView> &acc);
-void getSubtree(const Module &M, std::vector<ASTNodeView> &acc);
 
 } // namespace AST

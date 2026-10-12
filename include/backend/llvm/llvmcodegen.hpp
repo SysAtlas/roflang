@@ -22,10 +22,10 @@ private:
 
   llvm::LLVMContext &TheContext;
   llvm::Function* TheFunction;
-  std::unique_ptr<llvm::Module> TheModule;
-  std::unique_ptr<llvm::IRBuilder<>> Builder;
+  UP<llvm::Module> TheModule;
+  UP<llvm::IRBuilder<>> Builder;
   std::unordered_map<std::string, llvm::AllocaInst *> NamedValues;
-  std::unique_ptr<AST::Module> ModuleTree;
+  UP<AST::Module> ModuleTree;
 
   llvm::Value *codegen(const AST::NumberExpr &NNode);
   llvm::Value *codegen(const AST::VariableExpr &VNode);
@@ -43,9 +43,9 @@ private:
   llvm::Function *codegen(const AST::Function &FNode);
   void codegen();
 
-  LLVMCodeGen(std::unique_ptr<AST::Module> AST, llvm::LLVMContext &Context);
+  LLVMCodeGen(UP<AST::Module> AST, llvm::LLVMContext &Context);
 
 public:
-  static std::unique_ptr<llvm::Module> generate(std::unique_ptr<AST::Module> AST,
+  static UP<llvm::Module> generate(UP<AST::Module> AST,
                                                 llvm::LLVMContext &Context);
 };

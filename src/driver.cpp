@@ -22,11 +22,11 @@ using namespace llvm;
 //     : input_filepath(input_filepath), output_filepath(output_filepath) {}
 
 // void LLVMDriver::compile() {
-//   std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
+//   UP<AST::Module> ast = Parser::parse(input_filepath.data());
 //   Sema::analyze(*ast);
 
 //   LLVMContext the_context{};
-//   std::unique_ptr<llvm::Module> M =
+//   UP<llvm::Module> M =
 //       LLVMCodeGen::generate(std::move(ast), the_context);
 
 //   if (output_filepath == "-") {
@@ -43,10 +43,10 @@ X86Driver::X86Driver(std::string_view input_filepath,
     : input_filepath(input_filepath), output_filepath(output_filepath) {}
 
 void X86Driver::compile() {
-  std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
+  UP<AST::Module> ast = Parser::parse(input_filepath.data());
   Sema::analyze(*ast);
 
-  std::unique_ptr<X86::Module> mod = X86::ISel::runPass(std::move(ast));
+  UP<X86::Module> mod = X86::ISel::runPass(std::move(ast));
   if (print_after_isel) {
     std::cerr << "AFTER ISEL\n";
     std::cerr << "---------------------------\n";

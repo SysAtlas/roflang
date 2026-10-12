@@ -294,10 +294,10 @@ void ISel::select() {
   }
 }
 
-ISel::ISel(std::unique_ptr<AST::Module> module_tree)
+ISel::ISel(UP<AST::Module> module_tree)
     : tracker{nullptr}, module_tree{std::move(module_tree)} {}
 
-std::unique_ptr<Module> ISel::runPass(std::unique_ptr<AST::Module> ast) {
+UP<Module> ISel::runPass(UP<AST::Module> ast) {
   ISel isel{std::move(ast)};
   isel.select();
   return std::move(isel.mod);

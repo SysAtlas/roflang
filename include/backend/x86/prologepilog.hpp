@@ -8,7 +8,7 @@ namespace X86 {
 class PrologEpilog {
 
 Module* mod;
-std::unique_ptr<Builder> builder;
+UP<Builder> builder;
 
 PrologEpilog(Module *mod);
 

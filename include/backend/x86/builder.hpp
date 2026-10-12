@@ -39,9 +39,9 @@ public:
 
   BasicBlock &getBasicBlock(std::string_view name);
 
-  std::list<std::unique_ptr<Instruction>>::iterator insertInstructionBefore(
+  std::list<UP<Instruction>>::iterator insertInstructionBefore(
       Instruction &&to_insert,
-      std::list<std::unique_ptr<Instruction>>::iterator before);
+      std::list<UP<Instruction>>::iterator before);
 
   Function &getFunction(std::string_view name);
 
