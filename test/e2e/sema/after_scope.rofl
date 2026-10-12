@@ -1,0 +1,11 @@
+fn print_int(x: i32) -> void {
+  if (x > 1) {
+    a: i32 = 5;
+    while (a == 5) {
+      a = a - 1;
+      b: i32 = 3;
+    }
+    b = a;
+  }
+  return b;
+}

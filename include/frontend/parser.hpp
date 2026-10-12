@@ -5,6 +5,7 @@
 #include <frontend/lexer.hpp>
 #include <memory>
 #include <source_location>
+#include <unordered_map>
 
 class Parser {
 private:
@@ -12,26 +13,37 @@ private:
   const Token *cur_tok;
   const char *module_path;
 
-  [[nodiscard]] AST::Function parseFunction();
-  [[nodiscard]] AST::Function::Signature parseSignature();
-  [[nodiscard]] AST::Expr parseExpression();
-  [[nodiscard]] AST::Expr parseBinOpRHS(u32 expr_prec, AST::Expr &lhs);
+  // Stmt
   [[nodiscard]] AST::Statement parseStatement();
   [[nodiscard]] std::vector<AST::Statement> parseStatementSequence();
   [[nodiscard]] std::unique_ptr<AST::ReturnStatement> parseReturnStmt();
   [[nodiscard]] std::unique_ptr<AST::IfStatement> parseIfStmt();
+  [[nodiscard]] std::unique_ptr<AST::AssignmentStatement> parseAssignmentStmt();
+  [[nodiscard]] std::unique_ptr<AST::WhileStatement> parseWhileStmt();
   [[nodiscard]] std::unique_ptr<AST::LocalVarDeclStmt> parseLocalDefStatement();
+
+  // Expr
+  [[nodiscard]] AST::Expr parseExpression();
+  [[nodiscard]] AST::Expr parseBinOpRHS(u32 expr_prec, AST::Expr &lhs);
   [[nodiscard]] AST::Expr parsePrimary();
   [[nodiscard]] AST::Expr parseIdExpr();
   [[nodiscard]] AST::Expr parseParenExpr();
   [[nodiscard]] AST::Expr parseNumberExpr();
-  [[nodiscard]] std::unique_ptr<AST::Module> parseModule();
+
+  // Function
   [[nodiscard]] AST::Function::Argument parseFunctionArgument();
-  [[nodiscard]] std::unique_ptr<AST::AssignmentStatement> parseAssignmentStmt();
-  [[nodiscard]] std::unique_ptr<AST::WhileStatement> parseWhileStmt();
+  [[nodiscard]] AST::Function::Signature parseSignature();
+  [[nodiscard]] AST::Function parseFunction();
+
+  // Module
+  [[nodiscard]] std::unique_ptr<AST::Module> parseModule();
 
   // Logging
   void logError(std::string_view str, std::source_location parser_loc);
+  
+  // For storing source locations. Semantic analysis will refer to them
+  // when performing checks
+  std::unordered_map<AST::ASTNodeView, SourceLocation> locations;
 
   const Token *getNextToken();
   const Token *peek();

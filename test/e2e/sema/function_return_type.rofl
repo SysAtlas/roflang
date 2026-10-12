@@ -1,4 +1,0 @@
-fn print_int(x: i32) -> i32 {
-  a: i32 = 5;
-  return a;
-}

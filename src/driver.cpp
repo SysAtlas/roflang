@@ -44,7 +44,7 @@ X86Driver::X86Driver(std::string_view input_filepath,
 
 void X86Driver::compile() {
   std::unique_ptr<AST::Module> ast = Parser::parse(input_filepath.data());
-  // Sema::analyze(*ast);
+  Sema::analyze(*ast);
 
   std::unique_ptr<X86::Module> mod = X86::ISel::runPass(std::move(ast));
   if (print_after_isel) {

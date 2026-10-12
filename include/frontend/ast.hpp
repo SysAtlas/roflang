@@ -149,18 +149,6 @@ struct Module {
       : top_level_items{std::move(top_level_items)} {}
 };
 
-struct Node {
-  using NodeValueType =
-      std::variant<Module, Function, WhileStatement, LocalVarDeclStmt,
-                   AssignmentStatement, ReturnStatement, IfStatement, CallExpr,
-                   BinaryExpr, VariableExpr, NumberExpr>;
-  NodeValueType value;
-
-  SourceLocation loc{};
-
-  template <typename T> Node(T value) : value{value} {}
-};
-
 void getSubtree(const NumberExpr &number_expr, std::vector<ASTNodeView> &acc);
 void getSubtree(const VariableExpr &var_expr, std::vector<ASTNodeView> &acc);
 void getSubtree(const BinaryExpr &bin_expr, std::vector<ASTNodeView> &acc);

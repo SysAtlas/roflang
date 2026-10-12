@@ -1,0 +1,3 @@
+fn print_int() -> void {
+  a: i8 = 5;
+}

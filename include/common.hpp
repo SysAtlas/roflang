@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -73,3 +74,5 @@ const RLTypeInfo *searchRLTypeInfoTable(const std::string &sv);
 
 extern bool print_after_isel;
 extern bool print_after_li;
+
+template <typename T> using UP = std::unique_ptr<T>;
