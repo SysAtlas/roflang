@@ -1,0 +1,9 @@
+// TEST: RETURNCODE 5
+
+fn main() -> i32 {
+  x: i32 = 5;
+  if (x < 7) {
+    return 5; // As well as this
+  }
+  return 6;
+}

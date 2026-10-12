@@ -1,3 +1,10 @@
+// Find all prime numbers until 12
+// TEST: STDOUT 2
+// TEST: STDOUT 3
+// TEST: STDOUT 5
+// TEST: STDOUT 7
+// TEST: STDOUT 11
+
 fn putchar(i32) -> i32;
 
 fn print_int(x: i32) -> void {
@@ -25,7 +32,7 @@ fn print_int(x: i32) -> void {
 }
 
 fn main() -> i32 {
-    n: i32 = 1000000;
+    n: i32 = 12;
     number: i32 = 2;
     divisor: i32 = 2;
     prime: i32 = 1;

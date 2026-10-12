@@ -10,19 +10,20 @@ struct OpcodeInfo {
 };
 
 static const std::unordered_map<Opcode, OpcodeInfo> OPCODE_TABLE = {{
-    {Opcode::MOV, {"mov", {}}},     {Opcode::PUSH, {"push", {}}},
-    {Opcode::POP, {"pop", {}}},     {Opcode::XCHG, {"xchg", {}}},
-    {Opcode::ADD, {"add", {}}},     {Opcode::SUB, {"sub", {}}},
-    {Opcode::IMUL, {"imul", {}}},   {Opcode::IDIV, {"idiv", {RAX(), RDX()}}},
-    {Opcode::MOVSX, {"movsx", {}}}, {Opcode::CQO, {"cqo", {RDX()}}},
-    {Opcode::XOR, {"xor", {}}},     {Opcode::CMP, {"cmp", {}}},
-    {Opcode::SETZ, {"setz", {}}},   {Opcode::SETNE, {"setne", {}}},
-    {Opcode::SETLE, {"setle", {}}}, {Opcode::SETL, {"setl", {}}},
-    {Opcode::SETGE, {"setge", {}}}, {Opcode::SETG, {"setg", {}}},
-    {Opcode::JMP, {"jmp", {}}},     {Opcode::CALL, {"call", {}}},
-    {Opcode::RET, {"ret", {}}},     {Opcode::JZ, {"jz", {}}},
-    {Opcode::JG, {"jg", {}}},       {Opcode::JGE, {"jge", {}}},
-    {Opcode::JL, {"jl", {}}},       {Opcode::JLE, {"jle", {}}},
+    {Opcode::MOV, {"mov", {}}},      {Opcode::PUSH, {"push", {}}},
+    {Opcode::POP, {"pop", {}}},      {Opcode::XCHG, {"xchg", {}}},
+    {Opcode::ADD, {"add", {}}},      {Opcode::SUB, {"sub", {}}},
+    {Opcode::IMUL, {"imul", {}}},    {Opcode::IDIV, {"idiv", {RAX(), RDX()}}},
+    {Opcode::MOVSX, {"movsx", {}}},  {Opcode::CQO, {"cqo", {RDX()}}},
+    {Opcode::CDQ, {"cdq", {RDX()}}}, {Opcode::CWD, {"cwd", {RDX()}}},
+    {Opcode::XOR, {"xor", {}}},      {Opcode::CMP, {"cmp", {}}},
+    {Opcode::SETZ, {"setz", {}}},    {Opcode::SETNE, {"setne", {}}},
+    {Opcode::SETLE, {"setle", {}}},  {Opcode::SETL, {"setl", {}}},
+    {Opcode::SETGE, {"setge", {}}},  {Opcode::SETG, {"setg", {}}},
+    {Opcode::JMP, {"jmp", {}}},      {Opcode::CALL, {"call", {}}},
+    {Opcode::RET, {"ret", {}}},      {Opcode::JZ, {"jz", {}}},
+    {Opcode::JG, {"jg", {}}},        {Opcode::JGE, {"jge", {}}},
+    {Opcode::JL, {"jl", {}}},        {Opcode::JLE, {"jle", {}}},
     {Opcode::JNE, {"jne", {}}},
 }};
 

@@ -1,6 +1,0 @@
-def test(x: i32, y: i32) -> i64 {
-  if (x < 7) {
-    return 5;
-  }
-  return x + y;
-}

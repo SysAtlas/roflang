@@ -1,3 +1,5 @@
+// TEST: STDOUT ABCDEFGHIJKLMNOPQRSTUVWXYZ
+
 fn putchar(i32) -> i32;
 
 fn print_alphabet() -> void {
@@ -6,11 +8,12 @@ fn print_alphabet() -> void {
     putchar(counter);
     counter = counter + 1;
   }
+  putchar(10);
   return;
 }
 
-fn main() -> void
+fn main() -> i32
 {
   print_alphabet();
-  return;
+  return 0;
 }

@@ -19,12 +19,12 @@ const Token *Parser::peek() { return lexer.peek(); }
 void Parser::logError(
     std::string_view str,
     std::source_location parser_loc = std::source_location::current()) {
-  SourceLocation loc = cur_tok->Loc;
+  SourceLocation loc = cur_tok->source_location;
   auto full_message =
       std::format("Parser error at {}:{}: {}\nAt {}:{}\n{}\n{}",
                   parser_loc.file_name(), parser_loc.line(), str, module_path,
                   loc.line, lexer.getProgramLines()[loc.line - 1],
-                  std::string(loc.col - 2, ' ') + "^");
+                  std::string(loc.col - 1, ' ') + "^");
   std::cerr << full_message << '\n';
   exit(1);
 }
@@ -32,34 +32,34 @@ void Parser::logError(
 /// numberexpr ::= number
 AST::Expr Parser::parseNumberExpr() {
   return std::make_unique<AST::NumberExpr>(
-      consumeToken<NumberToken>()->NumVal_);
+      consumeToken<NumberToken>()->num_val);
 }
 
 /// parenexpr ::= '(' expression ')'
 AST::Expr Parser::parseParenExpr() {
   consumeToken<LParToken>();
-  auto V = parseExpression();
+  auto v = parseExpression();
   consumeToken<RParToken>();
-  return V;
+  return v;
 }
 
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
 AST::Expr Parser::parseIdExpr() {
-  std::string IdName{consumeToken<IdentifierToken>()->Name_};
+  std::string id_name{consumeToken<IdentifierToken>()->name};
 
   // Simple variable ref.
   if (!cur_tok->is<LParToken>()) {
-    return std::make_unique<AST::VariableExpr>(IdName);
+    return std::make_unique<AST::VariableExpr>(id_name);
   }
 
   consumeToken<LParToken>();
-  std::vector<AST::Expr> Args;
+  std::vector<AST::Expr> args;
   if (!cur_tok->is<RParToken>()) {
     while (true) {
-      auto Arg = parseExpression();
-      Args.push_back(std::move(Arg));
+      auto arg = parseExpression();
+      args.push_back(std::move(arg));
 
       if (cur_tok->is<RParToken>()) {
         break;
@@ -74,7 +74,7 @@ AST::Expr Parser::parseIdExpr() {
 
   consumeToken<RParToken>();
 
-  return std::make_unique<AST::CallExpr>(IdName, std::move(Args));
+  return std::make_unique<AST::CallExpr>(id_name, std::move(args));
 }
 
 /// primary
@@ -95,66 +95,66 @@ AST::Expr Parser::parsePrimary() {
 
 /// binoprhs
 ///   ::= ('+' primary)*
-AST::Expr Parser::parseBinOpRHS(u32 PrevPrecedence, AST::Expr &LHS) {
+AST::Expr Parser::parseBinOpRHS(u32 prev_precedence, AST::Expr &lhs) {
   while (true) {
     if (!cur_tok->is<BinOpToken>()) {
-      return std::move(LHS);
+      return std::move(lhs);
     }
 
-    const BinOpInfo *Info = cur_tok->get<BinOpToken>()->Info;
-    u32 Precedence = Info->precedence;
+    const BinOpInfo *info = cur_tok->get<BinOpToken>()->info;
+    u32 precedence = info->precedence;
 
     // If this is a binop that binds at least as tightly as the current binop,
     // consume it, otherwise we are done.
-    if (Precedence < PrevPrecedence) {
-      return std::move(LHS);
+    if (precedence < prev_precedence) {
+      return std::move(lhs);
     }
 
     // We can now consume
     consumeToken<BinOpToken>();
 
     // Parse the primary expression after the binary operator.
-    AST::Expr RHS = parsePrimary();
+    AST::Expr rhs = parsePrimary();
 
     // If BinOp binds less tightly with RHS than the operator after RHS, let
     // the pending operator take RHS as its LHS.
-    if (auto NextBinOp = cur_tok->getIf<BinOpToken>()) {
-      u32 NextPrec = NextBinOp->Info->precedence;
-      if (Precedence < NextPrec) {
-        RHS = parseBinOpRHS(Precedence + 1, RHS);
+    if (const BinOpToken *next_bin_op = cur_tok->getIf<BinOpToken>()) {
+      u32 next_prec = next_bin_op->info->precedence;
+      if (precedence < next_prec) {
+        rhs = parseBinOpRHS(precedence + 1, rhs);
       }
     }
 
     // Merge LHS/RHS.
-    LHS = std::make_unique<AST::BinaryExpr>(Info->op, std::move(LHS),
-                                            std::move(RHS));
+    lhs = std::make_unique<AST::BinaryExpr>(info->op, std::move(lhs),
+                                            std::move(rhs));
   }
 }
 
 /// expression
 ///   ::= primary binoprhs
 AST::Expr Parser::parseExpression() {
-  AST::Expr LHS = parsePrimary();
+  AST::Expr lhs = parsePrimary();
   if (cur_tok->is<BinOpToken>()) {
-    return parseBinOpRHS(0, LHS);
+    return parseBinOpRHS(0, lhs);
   }
-  return LHS;
+  return lhs;
 }
 
 AST::Function::Argument Parser::parseFunctionArgument() {
-  std::optional<std::string> Name;
+  std::optional<std::string> name;
   if (cur_tok->is<IdentifierToken>()) {
-    Name = consumeToken<IdentifierToken>()->Name_;
+    name = consumeToken<IdentifierToken>()->name;
     consumeToken<ColonToken>();
   }
-  const RLTypeInfo *TypeInfo = consumeToken<RLTypeToken>()->Info;
-  return AST::Function::Argument{Name, TypeInfo};
+  const RLTypeInfo *type_info = consumeToken<RLTypeToken>()->info;
+  return AST::Function::Argument{name, type_info};
 }
 /// signature
 ///   ::= id '(' id* ') -> returntype'
 AST::Function::Signature Parser::parseSignature() {
   const IdentifierToken *name_token = consumeToken<IdentifierToken>();
-  std::string fn_name{name_token->Name_};
+  std::string fn_name{name_token->name};
 
   consumeToken<LParToken>();
 
@@ -169,7 +169,7 @@ AST::Function::Signature Parser::parseSignature() {
   consumeToken<RParToken>();
   consumeToken<ArrowToken>();
 
-  const RLTypeInfo *return_type_info = consumeToken<RLTypeToken>()->Info;
+  const RLTypeInfo *return_type_info = consumeToken<RLTypeToken>()->info;
 
   // TODO: add static keyword
   return AST::Function::Signature(fn_name, std::move(args), return_type_info, false);
@@ -206,34 +206,34 @@ std::unique_ptr<AST::ReturnStatement> Parser::parseReturnStmt() {
 /// id: type = expr;
 [[nodiscard]] std::unique_ptr<AST::LocalVarDeclStmt>
 Parser::parseLocalDefStatement() {
-  std::string_view Name = consumeToken<IdentifierToken>()->Name_;
+  std::string_view name = consumeToken<IdentifierToken>()->name;
   consumeToken<ColonToken>();
-  const RLTypeInfo *Type = consumeToken<RLTypeToken>()->Info;
+  const RLTypeInfo *type = consumeToken<RLTypeToken>()->info;
   consumeToken<EqualsToken>();
-  AST::Expr Value = parseExpression();
-  return std::make_unique<AST::LocalVarDeclStmt>(Name, Type, std::move(Value));
+  AST::Expr value = parseExpression();
+  return std::make_unique<AST::LocalVarDeclStmt>(name, type, std::move(value));
 }
 
 /// assignment
 /// id = expr;
 [[nodiscard]] std::unique_ptr<AST::AssignmentStatement>
 Parser::parseAssignmentStmt() {
-  std::string_view Name = consumeToken<IdentifierToken>()->Name_;
+  std::string_view name = consumeToken<IdentifierToken>()->name;
   consumeToken<EqualsToken>();
-  AST::Expr Value = parseExpression();
-  return std::make_unique<AST::AssignmentStatement>(Name, std::move(Value));
+  AST::Expr value = parseExpression();
+  return std::make_unique<AST::AssignmentStatement>(name, std::move(value));
 }
 
 [[nodiscard]] std::unique_ptr<AST::WhileStatement> Parser::parseWhileStmt() {
   consumeToken<KeywordWhileToken>();
   consumeToken<LParToken>();
-  AST::Expr Cond = parseExpression();
+  AST::Expr cond = parseExpression();
   consumeToken<RParToken>();
   consumeToken<LCurlyBraceToken>();
-  std::vector<AST::Statement> Body = parseStatementSequence();
+  std::vector<AST::Statement> body = parseStatementSequence();
   consumeToken<RCurlyBraceToken>();
-  return std::make_unique<AST::WhileStatement>(std::move(Cond),
-                                               std::move(Body));
+  return std::make_unique<AST::WhileStatement>(std::move(cond),
+                                               std::move(body));
 }
 
 /// statement ::= expr;
@@ -246,25 +246,25 @@ AST::Statement Parser::parseStatement() {
                    return parseWhileStmt();
                  },
                  [this](const KeywordReturnToken &) -> AST::Statement {
-                   AST::Statement Res = parseReturnStmt();
+                   AST::Statement res = parseReturnStmt();
                    consumeToken<SemicolonToken>();
-                   return Res;
+                   return res;
                  },
                  [this](const auto &) -> AST::Statement {
                    if (peek()->is<ColonToken>()) {
-                     auto Res = parseLocalDefStatement();
+                     auto res = parseLocalDefStatement();
                      consumeToken<SemicolonToken>();
-                     return Res;
+                     return res;
                    } else if (peek()->is<EqualsToken>()) {
-                     auto Res = parseAssignmentStmt();
+                     auto res = parseAssignmentStmt();
                      consumeToken<SemicolonToken>();
-                     return Res;
+                     return res;
                    } else {
-                     AST::Statement Res =
+                     AST::Statement res =
                          std::make_unique<AST::Expr>(parseExpression());
                      consumeToken<SemicolonToken>();
 
-                     return Res;
+                     return res;
                    }
                  }},
       cur_tok->getValue());
@@ -324,7 +324,7 @@ Parser::Parser(const char *module_path)
     : lexer{module_path}, cur_tok{lexer.getTok()}, module_path{module_path} {}
 
 std::unique_ptr<AST::Module> Parser::parse(const char *module_path) {
-  Parser P{module_path};
-  std::unique_ptr<AST::Module> ast = P.parseModule();
+  Parser parser{module_path};
+  std::unique_ptr<AST::Module> ast = parser.parseModule();
   return ast;
 }

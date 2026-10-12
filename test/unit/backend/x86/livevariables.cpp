@@ -51,7 +51,7 @@ TEST(CFGComputation, BasicTest) {
   auto &bb_3 = builder.addBasicBlock();
 
 
-  builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
+  builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5, 64)});
   builder.addInstruction(Jmp{bb_2});
   builder.setInsertionBB(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
@@ -86,9 +86,12 @@ TEST(LiveAnalysis, BasicTest) {
 
   LiveVariableAnalysis::runPass(builder.mod);
 
-  ASSERT_EQ(builder.cur_function->live_int_map.at(0).toString(), "[0;16]");
-  ASSERT_EQ(builder.cur_function->live_int_map.at(3).toString(), "[0;4]");
-  ASSERT_EQ(builder.cur_function->live_int_map.at(4).toString(), "[8;8]");
+  ASSERT_EQ(builder.cur_function->live_int_map.at(0).start, 0);
+  ASSERT_EQ(builder.cur_function->live_int_map.at(0).end,16);
+  ASSERT_EQ(builder.cur_function->live_int_map.at(3).start, 0);
+  ASSERT_EQ(builder.cur_function->live_int_map.at(3).end,4);
+  ASSERT_EQ(builder.cur_function->live_int_map.at(4).start, 8);
+  ASSERT_EQ(builder.cur_function->live_int_map.at(4).end, 8);
 }
 
 TEST(LiveAnalysis, ExtendsThroughBlocks) {
@@ -98,7 +101,7 @@ TEST(LiveAnalysis, ExtendsThroughBlocks) {
   auto &bb_2 = builder.addBasicBlock();
   auto &bb_3 = builder.addBasicBlock();
 
-  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
+  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5, 64)});
   builder.addInstruction(Jmp{bb_2});
   builder.setInsertionBB(bb_2);
   builder.addInstruction(Mov{spawner.spawnVReg(), spawner.spawnVReg()});
@@ -129,7 +132,7 @@ TEST(LiveAnalysis, DiamondTest) {
   auto &bb_3 = builder.addBasicBlock();
   auto &bb_4 = builder.addBasicBlock();
 
-  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5)});
+  auto& live = builder.addInstruction(Mov{spawner.spawnVReg(), Immediate(5, 64)});
   builder.addInstruction(Jz{bb_2});
   builder.addInstruction(Jmp{bb_3});
 
@@ -140,7 +143,7 @@ TEST(LiveAnalysis, DiamondTest) {
   builder.addInstruction(Jmp{bb_4});
 
   builder.setInsertionBB(bb_3);
-  builder.addInstruction(Mov{spawner.getVReg(0), Immediate(0)});
+  builder.addInstruction(Mov{spawner.getVReg(0), Immediate(0, 64)});
   builder.addInstruction(Jmp{bb_4});
 
   builder.setInsertionBB(bb_4);
@@ -165,11 +168,11 @@ TEST(LiveAnalysis, LoopTest) {
   auto &after = builder.addBasicBlock("after");
 
   auto counter = spawner.spawnVReg();
-  auto &live = builder.addInstruction(Mov{counter, Immediate(5)});
+  auto &live = builder.addInstruction(Mov{counter, Immediate(5, 64)});
   builder.addInstruction(Jmp{cond});
   builder.setInsertionBB(cond);
-  builder.addInstruction(Sub{counter, Immediate(1)});
-  builder.addInstruction(Cmp{counter, Immediate(0)});
+  builder.addInstruction(Sub{counter, Immediate(1, 64)});
+  builder.addInstruction(Cmp{counter, Immediate(0, 64)});
   builder.addInstruction(Jz{after});
   builder.addInstruction(Jmp{body});
 

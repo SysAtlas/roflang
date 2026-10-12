@@ -53,7 +53,7 @@ private:
   consumeToken(std::source_location loc = std::source_location::current()) {
     const T *res = cur_tok->getIf<T>();
     if (!res) {
-      logError(std::format("Expected {}", T::TokenName), loc);
+      logError(std::format("Expected {}", T::TOKEN_NAME), loc);
     }
     DBGPRINT(std::format("Parser: consumed token {}", cur_tok->print()));
     getNextToken();

@@ -3,116 +3,120 @@
 #include <iostream>
 #include <frontend/lexer.hpp>
 
-char Lexer::nextChar() {
-  LastChar = ProgramStream.get();
-  if (LastChar == '\n') {
-    ++Line;
-    Col = 1;
+i32 Lexer::nextChar() {
+  if (last_char == '\n') {
+    ++line;
+    col = 1;
   } else {
-    ++Col;
+    ++col;
   }
-  return LastChar;
+  last_char = program_stream.get();
+  return last_char;
+}
+
+i32 Lexer::peekChar() {
+  return program_stream.peek();
 }
 
 SourceLocation Lexer::getLocInfo() {
-  return {Line, Col};
+  return {line, col};
 }
 
 Token Lexer::consumeTok() {
   // Skip any whitespace.
-  while (std::isspace(LastChar)) {
+  while (std::isspace(last_char)) {
     nextChar();
   }
 
   // identifier: [a-zA-Z][a-zA-Z0-9]*
-  if (std::isalpha(LastChar) || LastChar == '_') {
-    std::string IdentifierStr;
+  if (std::isalpha(last_char) || last_char == '_') {
+    std::string identifier_str;
     do {
-      IdentifierStr += LastChar;
+      identifier_str += static_cast<char>(last_char);
       nextChar();
-    } while (std::isalnum(LastChar) || LastChar == '_');
+    } while (std::isalnum(last_char) || last_char == '_');
 
     // TODO: Make centralized tables.. this is too much effort
-    if (IdentifierStr == "fn") {
+    if (identifier_str == "fn") {
       return KeywordFnToken{};
     }
-    if (IdentifierStr == "if") {
+    if (identifier_str == "if") {
       return KeywordIfToken{};
     }
-    if (IdentifierStr == "else") {
+    if (identifier_str == "else") {
       return KeywordElseToken{};
     }
-    if (IdentifierStr == "return") {
+    if (identifier_str == "return") {
       return KeywordReturnToken{};
     }
-    if (IdentifierStr == "while") {
+    if (identifier_str == "while") {
       return KeywordWhileToken{};
     }
-    if (const RLTypeInfo *TypeInfo = searchRLTypeInfoTable(IdentifierStr)) {
-      return RLTypeToken{TypeInfo->type};
+    if (const RLTypeInfo *type_info = searchRLTypeInfoTable(identifier_str)) {
+      return RLTypeToken{type_info->type};
     }
 
-    return IdentifierToken{IdentifierStr};
+    return IdentifierToken{identifier_str};
   }
 
-  if (std::isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
-    std::string NumStr;
+  if (std::isdigit(last_char) || last_char == '.') { // Number: [0-9.]+
+    std::string num_str;
     do {
-      NumStr += LastChar;
+      num_str += static_cast<char>(last_char);
       nextChar();
-    } while (isdigit(LastChar) || LastChar == '.');
+    } while (isdigit(last_char) || last_char == '.');
 
     // TODO: ERROR HANDLING
-    i64 NumVal = std::strtoll(NumStr.c_str(), nullptr, 10);
+    i64 num_val = std::strtoll(num_str.c_str(), nullptr, 10);
 
-    return NumberToken{NumVal};
+    return NumberToken{num_val};
   }
 
-  if (LastChar == '#') {
-    // Comment until end of line.
+  if (last_char == '/' && peekChar() == '/') {
     do {
       nextChar();
-    } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
+    } while (last_char != EOF && last_char != '\n' && last_char != '\r');
 
-    if (LastChar != EOF) {
+    if (last_char != EOF) {
       return consumeTok();
     }
-  }
+  } 
+  // TODO: Multi-line comments
 
-  std::optional<Token> SingleCharToken;
-  i32 ToMatch = LastChar;
+  std::optional<Token> single_char_token;
+  i32 to_match = last_char;
   nextChar();
-  if (ToMatch == ',') {
+  if (to_match == ',') {
     return CommaToken{};
-  } else if (ToMatch == '-') {
-    if (LastChar == '>') {
+  } else if (to_match == '-') {
+    if (last_char == '>') {
       nextChar();
       return ArrowToken{};
     }
     return BinOpToken{BinOp::SUB};
-  } else if (const BinOpInfo* T = searchBinOpInfoTable(std::string{(char) ToMatch, (char) LastChar})) {
+  } else if (const BinOpInfo* t = searchBinOpInfoTable(std::string{(char) to_match, (char) last_char})) {
     // Bin ops of size 2
     nextChar();
-    return BinOpToken{T->op};
+    return BinOpToken{t->op};
     // Bin ops of size 1
-  } else if (const BinOpInfo *T = searchBinOpInfoTable(std::string(1, ToMatch))) {
-    return BinOpToken{T->op};
-  } else if (ToMatch == ';') {
+  } else if (const BinOpInfo *t = searchBinOpInfoTable(std::string(1, static_cast<char>(to_match)))) {
+    return BinOpToken{t->op};
+  } else if (to_match == ';') {
     return SemicolonToken{};
-  } else if (ToMatch == '(') {
+  } else if (to_match == '(') {
     return LParToken{};
-  } else if (ToMatch == ')') {
+  } else if (to_match == ')') {
     return RParToken{};
-  } else if (ToMatch == EOF) {
+  } else if (to_match == EOF) {
     return EOFToken{};
-  } else if (ToMatch == '{') {
+  } else if (to_match == '{') {
     return LCurlyBraceToken{};
-  } else if (ToMatch == '}') {
+  } else if (to_match == '}') {
     return RCurlyBraceToken{};
-  } else if (ToMatch == ':') {
+  } else if (to_match == ':') {
     return ColonToken{};
-  } else if (ToMatch == '=') {
-    if (LastChar == '=') {
+  } else if (to_match == '=') {
+    if (last_char == '=') {
       nextChar();
       return BinOpToken{searchBinOpInfoTable("==")->op};
     }
@@ -126,37 +130,37 @@ Token Lexer::consumeTok() {
 
 void Lexer::lex() {
   do {
-    SourceLocation Loc = getLocInfo();
-    Tokens.push_back(consumeTok());
-    Tokens.back().Loc = Loc;
-    DBGPRINT(Tokens.back().print());
-  } while (!Tokens.back().is<EOFToken>());
-  CurTok = Tokens.data();
+    SourceLocation source_location = getLocInfo();
+    tokens.push_back(consumeTok());
+    tokens.back().source_location = source_location;
+    DBGPRINT(tokens.back().print());
+  } while (!tokens.back().is<EOFToken>());
+  cur_tok = tokens.data();
 }
 
 const std::vector<std::string> &Lexer::getProgramLines() {
-  return ProgramLines;
+  return program_lines;
 }
 const Token *Lexer::getTok() {
-  const Token* Res = CurTok;
-  ++CurTok;
-  return Res;
+  const Token* res = cur_tok;
+  ++cur_tok;
+  return res;
 }
 
 const Token* Lexer::peek() {
-  return CurTok;
+  return cur_tok;
 }
 
-Lexer::Lexer(const char* ModulePath)
-    : ModulePath(ModulePath), ProgramStream{std::ifstream{ModulePath}} {
-  if (ProgramStream.fail()) {
-    std::cerr << "Failure opening file " << ModulePath << std::endl;
+Lexer::Lexer(const char* module_path)
+    : module_path(module_path), program_stream{std::ifstream{module_path}} {
+  if (program_stream.fail()) {
+    std::cerr << "Failure opening file " << module_path << std::endl;
     std::exit(1);
   }
-  std::ifstream Tmp{ModulePath};
-  std::string Line;
-  while (std::getline(Tmp, Line)) { 
-    ProgramLines.push_back(Line);
+  std::ifstream tmp{module_path};
+  std::string line;
+  while (std::getline(tmp, line)) { 
+    program_lines.push_back(line);
   }
 
   nextChar();
@@ -165,12 +169,12 @@ Lexer::Lexer(const char* ModulePath)
 
 std::string_view Token::print() const {
   return std::visit<std::string_view>(
-    overloaded{[](const BinOpToken &Arg) -> std::string_view { return Arg.Info->repr; },
-               [](const RLTypeToken &Arg) -> std::string_view { return Arg.Info->repr; },
-               [](const auto &Value) -> std::string_view {
-                 return Value.TokenName;
+    overloaded{[](const BinOpToken &arg) -> std::string_view { return arg.info->repr; },
+               [](const RLTypeToken &arg) -> std::string_view { return arg.info->repr; },
+               [](const auto &value) -> std::string_view {
+                 return value.TOKEN_NAME;
                }},
-    Value);
+    value);
 }
 
 void Token::dump() const {

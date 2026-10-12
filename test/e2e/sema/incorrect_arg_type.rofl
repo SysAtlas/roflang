@@ -1,0 +1,9 @@
+// Should report mismatch between argument types
+
+fn putchar(i32) -> i32;
+fn get_i8() -> i8;
+
+fn main() -> i32 {
+  x: i8 = get_i8();
+  putchar(x);
+}

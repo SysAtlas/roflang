@@ -1,8 +1,10 @@
+// TEST: RETURNCODE 55
+
 fn main() -> i32 {
-  a: i32 = 1;
-  counter: i32 = 1;
+  a: i32 = 0;
+  counter: i32 = 0;
   while (counter <= 10) {
-    a = a * counter;
+    a = a + counter;
     counter = counter + 1;
   }
   return a;

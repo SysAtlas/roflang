@@ -39,6 +39,25 @@ const RLTypeInfo *Sema::analyzeExpression(const AST::Expr &expr) {
       reportSemanticAnalysisError(
           std::format("Function use before def for {}", call_expr.callee_name));
     }
+    const Function *function = name_to_func.at(call_expr.callee_name);
+    usize counter = 0;
+    usize expected_arg_count = function->signature.args.size();
+
+    for (auto &passed_arg : call_expr.args) {
+      const RLTypeInfo *info = analyzeExpression(passed_arg);
+      const auto &expected_arg = function->signature.args[counter++];
+      if (expected_arg.type_info != info) {
+        reportSemanticAnalysisError(
+            std::format("Argument type mismatch for function call to {}",
+                        function->signature.name));
+      }
+    }
+    if (counter != expected_arg_count) {
+      reportSemanticAnalysisError(
+          std::format("Function {} expected {} arguments but got {}",
+                      function->signature.name, expected_arg_count, counter));
+    }
+
     return name_to_func.at(call_expr.callee_name)->signature.return_type_info;
   }
   abort();
@@ -96,8 +115,8 @@ Sema::analyzeLocalVarDeclStmt(const LocalVarDeclStmt &lvd_stmt) {
 
 void Sema::analyzeAssignmentStatement(const AST::AssignmentStatement &a_stmt) {
   if (current_scope.find(a_stmt.name) == current_scope.end()) {
-    reportSemanticAnalysisError(std::format(
-        "Unknown identifier {}", a_stmt.name));
+    reportSemanticAnalysisError(
+        std::format("Unknown identifier {}", a_stmt.name));
   }
   const RLTypeInfo *lhs_info = current_scope.at(a_stmt.name);
   const RLTypeInfo *rhs_info = analyzeExpression(a_stmt.value);

@@ -88,7 +88,6 @@ void LiveVariableAnalysis::computeLiveIntervals(Function &f) {
         live_int_map.insert({live_out_id, LiveInterval{live_out_id}});
       }
       LiveInterval& li = live_int_map.at(live_out_id);
-      li.start = li.start;
       li.end = std::max(li.end, last_instr_number);
       li.variable_id = live_out_id;
     }

@@ -22,6 +22,8 @@ enum class Opcode {
   IDIV,
   MOVSX,
   CQO,
+  CDQ,
+  CWD,
   XOR,
   CMP,
   SETZ,
@@ -146,6 +148,14 @@ struct Xor : public Instruction {
 // RDX:RAX = sign extend of RAX
 struct Cqo : public Instruction {
   Cqo() : Instruction{Opcode::CQO, {}} {}
+};
+
+struct Cdq : public Instruction {
+  Cdq() : Instruction{Opcode::CDQ, {}} {}
+};
+
+struct Cwd : public Instruction {
+  Cwd() : Instruction{Opcode::CWD, {}} {}
 };
 
 // Cmp

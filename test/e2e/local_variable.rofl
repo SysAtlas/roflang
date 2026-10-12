@@ -1,4 +1,4 @@
-fn main(x: i64, y: i64) -> i64 {
+fn main() -> i32 {
   local_var: i64 = 67;
   if (local_var < 228) {
     local_var = 42;

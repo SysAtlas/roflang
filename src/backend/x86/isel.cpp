@@ -116,7 +116,15 @@ Register ISel::select(const AST::BinaryExpr &bin_expr) {
 
   if (op == BinOp::DIV || op == BinOp::MOD) {
     builder->addInstruction(Mov{RAX().getSubregister(lhs.size), lhs});
-    builder->addInstruction(Cqo{});
+    if (rhs.size == 64) {
+      builder->addInstruction(Cqo{});
+    } else if (rhs.size == 32) {
+      builder->addInstruction(Cdq{});
+    } else if (rhs.size <= 16) {
+      builder->addInstruction(Cwd{});
+    } else {
+      abort();
+    }
     builder->addInstruction(IDiv{rhs});
     auto res = tracker->getVirtualRegister(rhs.size);
     if (op == BinOp::MOD) {

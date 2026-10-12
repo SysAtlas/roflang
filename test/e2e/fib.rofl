@@ -1,3 +1,6 @@
+// Print first 12 fibonacci numbers
+// TEST: STDOUT 0 1 1 2 3 5 8 13 21 34 55 89 
+
 fn putchar(i32) -> i32;
 
 fn print_int(x: i32) -> void {
@@ -28,8 +31,9 @@ fn print_fibonacci() -> void {
   a: i32 = 0;
   b: i32 = 1;
   counter: i32 = 0;
+  prime_count: i32 = 12;
 
-  while (counter < 50) {
+  while (counter < 12) {
     print_int(a);
     putchar(32);
 
@@ -43,8 +47,8 @@ fn print_fibonacci() -> void {
   return;
 }
 
-fn main() -> void {
+fn main() -> i32 {
   print_fibonacci();
   putchar(10);
-  return;
+  return 0;
 }
